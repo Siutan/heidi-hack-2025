@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, screen } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -6,6 +6,46 @@ import started from 'electron-squirrel-startup';
 if (started) {
   app.quit();
 }
+
+declare const OVERLAY_WINDOW_VITE_DEV_SERVER_URL: string;
+declare const OVERLAY_WINDOW_VITE_NAME: string;
+
+const createOverlayWindow = () => {
+  const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+  const windowWidth = 350;
+  const windowHeight = 100;
+  const padding = 20;
+
+  const overlayWindow = new BrowserWindow({
+    width: windowWidth,
+    height: windowHeight,
+    x: screenWidth - windowWidth - padding,
+    y: padding,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    hasShadow: false, // We use CSS shadow
+    skipTaskbar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  // Make it float above full-screen apps if possible
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  overlayWindow.setAlwaysOnTop(true, 'floating', 1);
+
+  if (OVERLAY_WINDOW_VITE_DEV_SERVER_URL) {
+    overlayWindow.loadURL(OVERLAY_WINDOW_VITE_DEV_SERVER_URL);
+  } else {
+    overlayWindow.loadFile(
+      path.join(__dirname, `../renderer/${OVERLAY_WINDOW_VITE_NAME}/index.html`),
+    );
+  }
+
+  // overlayWindow.webContents.openDevTools({ mode: 'detach' });
+};
 
 const createWindow = () => {
   // Create the browser window.
@@ -28,6 +68,8 @@ const createWindow = () => {
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
+
+  createOverlayWindow();
 };
 
 // This method will be called when Electron has finished
