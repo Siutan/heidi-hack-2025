@@ -65,7 +65,7 @@ const OverlayApp = () => {
 
   return (
     <div className="w-full h-full flex items-center justify-center p-2">
-      <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 ease-in-out ${view === 'expanded' ? 'h-auto' : 'h-[68px]'} w-[350px]`}>
+      <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 ease-in-out ${view === 'expanded' ? 'h-auto' : 'h-[68px]'} w-full`}>
         
         {/* Header Section */}
         <div className="flex items-center justify-between px-4 py-3 h-[68px]">
@@ -79,14 +79,14 @@ const OverlayApp = () => {
                 <span className="font-bold text-lg text-gray-900">From Dee</span>
               </div>
             ) : view === 'recording' ? (
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg text-gray-900">“Hi Dee...”</span>
+              <div className="flex items-center">
+                <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
               </div>
             ) : (
               <div className="flex flex-col cursor-pointer" onClick={startRecording}>
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-lg text-gray-900">“Hi Dee...”</span>
-                  <span className="text-gray-400 text-lg">Record a session</span>
+                  <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
+                  <span className="text-gray-400 text-lg shrink-0">Record a session</span>
                 </div>
                 <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
               </div>
@@ -106,7 +106,7 @@ const OverlayApp = () => {
             ) : (
               <button 
                 onClick={toggleShortcuts}
-                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0"
               >
                 View Shortcuts
                 {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
