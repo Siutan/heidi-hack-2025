@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, ChevronDown } from 'lucide-react';
 import './overlay.css';
 
 type ViewState = 'idle' | 'expanded' | 'recording' | 'response';
@@ -107,12 +107,15 @@ const OverlayApp = () => {
                         </div>
 
 
-                        <div className="flex flex-col  w-[400px] cursor-pointer" onClick={startRecording}>
+                        <div className="flex flex-col  w-[400px] cursor-pointer" onClick={toggleShortcuts}>
                             <div className="flex items-center gap-1">
                                 <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
                                 <span className="text-gray-400 text-md shrink-0">Record a session</span>
                             </div>
                             <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
+                        </div>
+                        <div className={`transition-transform duration-300 ${view === 'expanded' ? 'rotate-180' : ''}`}>
+                            <ChevronDown className="w-5 h-5 text-gray-400" />
                         </div>
                     </div>
 
@@ -147,6 +150,18 @@ const OverlayApp = () => {
                                     {shortcut}
                                 </button>
                             ))}
+                            <button
+                                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-white hover:shadow-sm text-sm text-gray-700 transition-all flex items-center gap-3 group border border-transparent hover:border-gray-100"
+                                onClick={async () => {
+                                    if (window.electron) {
+                                        const result = await window.electron.checkAndOpenApp();
+                                        console.log('App check result:', result);
+                                    }
+                                }}
+                            >
+                                <div className="w-2 h-2 rounded-full bg-gray-300 group-hover:bg-blue-500 transition-colors"></div>
+                                Open Mock EHR
+                            </button>
                         </div>
                     </div>
                 )}

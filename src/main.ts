@@ -1,4 +1,5 @@
 import { app, BrowserWindow, screen, ipcMain } from 'electron';
+import { exec } from 'child_process';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -16,6 +17,31 @@ ipcMain.on('resize-window', (event, width, height) => {
     const y = padding;
     win.setBounds({ x, y, width, height }, true);
   }
+});
+
+
+ipcMain.handle('check-and-open-app', async () => {
+  return new Promise((resolve) => {
+    const appName = "mock ehr desktop app";
+    // Check if app is running
+    exec(`ps -ax | grep "${appName}" | grep -v grep`, (err, stdout) => {
+      if (stdout) {
+        console.log(`${appName} is already running.`);
+        resolve(true);
+      } else {
+        console.log(`${appName} is not running. Opening...`);
+        exec(`open -a "${appName}"`, (err) => {
+          if (err) {
+            console.error(`Failed to open ${appName}:`, err);
+            resolve(false);
+          } else {
+            console.log(`Opened ${appName}`);
+            resolve(true);
+          }
+        });
+      }
+    });
+  });
 });
 
 declare const OVERLAY_WINDOW_VITE_DEV_SERVER_URL: string;

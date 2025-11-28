@@ -4,6 +4,7 @@ declare global {
   interface Window {
     electron: {
       resizeWindow: (width: number, height: number) => void;
+      checkAndOpenApp: () => Promise<boolean>;
     };
   }
 }
