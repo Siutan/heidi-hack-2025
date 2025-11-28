@@ -1,6 +1,8 @@
-import { app, BrowserWindow, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, desktopCapturer, dialog } from 'electron';
 import path from 'node:path';
+import 'dotenv/config'; // Load .env file
 import started from 'electron-squirrel-startup';
+import { generateMockData, performAutomation } from './rpa';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -82,6 +84,37 @@ const createWindow = () => {
   mainWindow.webContents.openDevTools();
 
   createOverlayWindow();
+
+  ipcMain.handle('get-sources', async () => {
+    const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] });
+    return sources.map(source => ({
+      id: source.id,
+      name: source.name,
+      thumbnail: source.thumbnail.toDataURL()
+    }));
+  });
+
+  ipcMain.handle('rpa:fill-template', async (event, conversation: string, sourceId?: string) => {
+    try {
+      const textToProcess = conversation || generateMockData();
+      await performAutomation(textToProcess, sourceId);
+      return 'done';
+    } catch (error: any) {
+      console.error("RPA Error in main process:", error);
+      
+      let message = "An unexpected error occurred during automation.";
+      if (error.name === 'RPAError' || error.name === 'ElementNotFoundError' || error.name === 'NoActionsGeneratedError' || error.name === 'ScreenCaptureError') {
+        message = error.message;
+      } else if (error.message) {
+        message = error.message;
+      }
+
+      // Show error dialog to user
+      dialog.showErrorBox("Automation Failed", message);
+      
+      throw error; // Propagate back to renderer if needed
+    }
+  });
 };
 
 // This method will be called when Electron has finished
