@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.50",
+    "@google/generative-ai": "^0.24.1",
     "@types/screenshot-desktop": "^1.15.0",
     "ai": "^5.0.104",
     "dotenv": "^17.2.3",
