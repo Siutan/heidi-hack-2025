@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, systemPreferences } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -12,6 +12,28 @@ ipcMain.on('resize-window', (event, width, height) => {
   if (win) {
     win.setSize(width, height, true);
   }
+});
+
+ipcMain.on('transcript-update', (event, text) => {
+  // Find the main window (not the overlay)
+  const windows = BrowserWindow.getAllWindows();
+  const mainWindow = windows.find(w => !w.isAlwaysOnTop()); // Heuristic: Overlay is always on top
+  if (mainWindow) {
+    mainWindow.webContents.send('transcript-update', text);
+  }
+});
+
+ipcMain.handle('request-mic-permission', async () => {
+  // skip non mac
+  if (process.platform !== 'darwin') {
+    return true;
+  }
+  const status = systemPreferences.getMediaAccessStatus('microphone');
+  console.log({status})
+  if (status === 'granted') {
+    return true;
+  }
+  return await systemPreferences.askForMediaAccess('microphone');
 });
 
 declare const OVERLAY_WINDOW_VITE_DEV_SERVER_URL: string;
