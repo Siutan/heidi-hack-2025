@@ -107,16 +107,7 @@ const OverlayApp = () => {
                   <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
                   <span className="text-gray-400 text-md shrink-0">Record a session</span>
                 </div>
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
-                  <button 
-                  onClick={toggleShortcuts}
-                  className="flex items-center gap-1 text-gray-500 font-medium hover:bg-gray-100 hover:rounded-lg"
-                  >
-                  <p className="text-xs">View Shortcuts</p>
-                  {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                </button>
-                </div>
+                <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
               </div>
           </div>
 
