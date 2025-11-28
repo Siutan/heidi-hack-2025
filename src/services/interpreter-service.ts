@@ -202,9 +202,23 @@ async function executeHeidiToEMRWorkflow(): Promise<CommandResult> {
       executedActions.push("Switched to next application");
     }
 
-    // Step 5: Click in a text area and paste
-    executedActions.push("Looking for text input area...");
+    // Step 5: Focus the target app and click in text area
+    executedActions.push("Focusing target application...");
     const displayDimensions2 = await Computer.getDisplayDimensions();
+
+    // First, click on the top of the window to ensure it's focused (title bar area)
+    const focusAppX = Math.round(displayDimensions2.width * 0.5);
+    const focusAppY = 50; // Top area
+
+    console.log(
+      `🎯 Clicking to focus target app at (${focusAppX}, ${focusAppY})`
+    );
+    await Computer.clickAt(focusAppX, focusAppY);
+    await Computer.wait(0.3);
+    executedActions.push(`Focused target application`);
+
+    // Now click in the text area
+    executedActions.push("Looking for text input area...");
     // Click in a better position - left-center area where text editors usually are
     const pasteX = Math.round(displayDimensions2.width * 0.3);
     const pasteY = Math.round(displayDimensions2.height * 0.3);
@@ -293,16 +307,13 @@ Command: "Copy notes from Heidi and paste to EMR"
 Response: {"interpretation": "Copying text from Heidi Health scribe and pasting to EMR system", "actions": ["key: cmd+tab", "wait: 1", "select_all", "wait: 0.3", "copy", "wait: 0.5", "key: cmd+tab", "wait: 1", "click: 500,400", "wait: 0.5", "paste"]}
 
 Command: "Click copy button on Heidi and paste to notes"
-Response: {"interpretation": "Copying text from Heidi Health scribe and pasting to EMR system", "actions": ["key: cmd+tab", "wait: 1", "select_all", "wait: 0.3", "copy", "wait: 0.5", "key: cmd+tab", "wait: 1", "click: 500,400", "wait: 0.5", "paste"]}
+Response: {"interpretation": "Copying text from Heidi Health scribe and pasting to note app", "actions": ["key: cmd+tab", "wait: 1", "select_all", "wait: 0.3", "copy", "wait: 0.5", "key: cmd+tab", "wait: 1", "click: 500,400", "wait: 0.5", "paste"]}
 
 IMPORTANT: For Heidi Health workflows:
 - scribe.heidihealth.com is the medical scribe platform where clinical notes are generated
-- The page has UI buttons like "Copy", "Copy to Clipboard", "Export", etc.
 - EMR (Electronic Medical Record) is where doctors/nurses paste the notes
 - You may need to switch browser tabs or applications to go between Heidi and EMR or notes app
-- Use cmd+shift+] to switch to next browser tab, cmd+shift+[ for previous tab
 - Use cmd+tab to switch between applications
-- Common workflow: Click copy button on Heidi → switch tab → paste to EMR/notes
 
 Now interpret: "${command}"`,
         },
