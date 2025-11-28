@@ -6,7 +6,7 @@
  */
 
 import { anthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
+import { generateText, type ModelMessage } from "ai";
 import { Computer } from "./computer-service";
 
 interface CommandResult {
@@ -16,221 +16,157 @@ interface CommandResult {
 }
 
 /**
- * Analyze the current screen to detect Heidi Health and EMR applications
+ * Available actions that can be executed by the automation system
  */
-async function analyzeCurrentScreen(): Promise<{
-  hasHeidiHealth: boolean;
-  hasEMR: boolean;
-  heidiTabIndex?: number;
-  emrTabIndex?: number;
-  description: string;
-}> {
-  try {
-    console.log("Analyzing current screen...");
-
-    const screenshot = await Computer.takeScreenshot();
-    const displayDimensions = await Computer.getDisplayDimensions();
-
-    const result = await generateText({
-      model: anthropic("claude-sonnet-4-5"),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              image: screenshot,
-            },
-            {
-              type: "text",
-              text: `Analyze this screen and identify:
-
-1. Is there a browser tab/window open with "scribe.heidihealth.com"?
-2. Is there an EMR (Electronic Medical Record) software or medical records application visible?
-   - Look for: patient charts, medical forms, clinical documentation systems
-   - Common EMR names: Epic, Cerner, Meditech, Allscripts, or any medical record interface
-3. If browser tabs are visible, which tab number (1-based index from left) is Heidi Health?
-4. Which tab/window appears to be the EMR or notes application?
-
-Return ONLY a JSON object:
-{
-  "hasHeidiHealth": true/false,
-  "hasEMR": true/false,
-  "heidiTabIndex": <number or null>,
-  "emrTabIndex": <number or null>,
-  "description": "brief description of what you see"
-}
-
-Screen dimensions: ${displayDimensions.width}x${displayDimensions.height}`,
-            },
-          ],
-        },
-      ],
-      temperature: 0,
-    });
-
-    console.log("Screen Analysis:", result.text);
-
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in analysis");
-    }
-
-    const analysis = JSON.parse(jsonMatch[0]);
-    console.log("Parsed analysis:", analysis);
-
-    return analysis;
-  } catch (error) {
-    console.error("Error analyzing screen:", error);
-    return {
-      hasHeidiHealth: false,
-      hasEMR: false,
-      description: "Failed to analyze screen",
-    };
-  }
-}
+const AVAILABLE_ACTIONS = `Available actions:
+- type: Type text (e.g., "type: Hello World")
+- click: Click at coordinates (e.g., "click: 100,200")
+- key: Press a key (e.g., "key: return", "key: cmd+space", "key: cmd+tab", "key: cmd+shift+]", "key: cmd+a", "key: cmd+c", "key: cmd+v")
+- double_click: Double click at coordinates (e.g., "double_click: 100,200")
+- right_click: Right click at coordinates (e.g., "right_click: 100,200")
+- move: Move mouse to coordinates (e.g., "move: 100,200")
+- copy: Copy selected text (shorthand for "key: cmd+c")
+- paste: Paste from clipboard (shorthand for "key: cmd+v")
+- select_all: Select all text (shorthand for "key: cmd+a")
+- open_app: Open application via Spotlight (e.g., "open_app: Safari")`;
 
 /**
- * Execute Heidi Health to EMR workflow with smart detection
+ * Execute Heidi Health to EMR workflow with vision-based loop
  */
 async function executeHeidiToEMRWorkflow(): Promise<CommandResult> {
   try {
-    console.log("Starting Heidi to EMR workflow...");
-
-    // Step 1: Analyze the screen
-    const analysis = await analyzeCurrentScreen();
-    console.log("Screen analysis:", analysis);
+    console.log("Starting Heidi to EMR workflow with vision loop...");
 
     const executedActions: string[] = [];
-    executedActions.push(`Screen analysis: ${analysis.description}`);
+    let iteration = 0;
+    const maxIterations = 20;
+    let conversationHistory: ModelMessage[] = [];
+    let isComplete = false;
 
-    // Step 2: Ensure browser with Heidi Health is focused
-    if (!analysis.hasHeidiHealth) {
-      executedActions.push(
-        "Heidi Health not found - searching for browser window"
+    const goal =
+      "Copy medical notes from Heidi Health scribe (scribe.heidihealth.com) and paste them into the EMR or notes application";
+
+    while (iteration < maxIterations && !isComplete) {
+      iteration++;
+      console.log(
+        `\n=== Heidi Workflow Iteration ${iteration}/${maxIterations} ===`
       );
-      // Try to find browser with Heidi
-      await Computer.pressKey("cmd+tab");
-      await Computer.wait(0.5);
-      executedActions.push("Switched windows");
 
-      // Re-analyze
-      const reanalysis = await analyzeCurrentScreen();
-      if (!reanalysis.hasHeidiHealth) {
-        return {
-          success: false,
-          message:
-            "Could not find Heidi Health scribe. Please open scribe.heidihealth.com first.",
-          actions: executedActions,
-        };
-      }
-      executedActions.push("Found Heidi Health");
-    } else {
-      // Heidi is visible but might not be focused - click on browser to ensure focus
-      executedActions.push("Ensuring browser is focused...");
+      // Take screenshot
+      const screenshot = await Computer.takeScreenshot();
       const displayDimensions = await Computer.getDisplayDimensions();
-      // Click on browser title bar/URL area to focus it
-      const focusX = Math.round(displayDimensions.width * 0.5);
-      const focusY = 50; // Top area where URL bar typically is
 
-      console.log(`🎯 Clicking browser to focus at (${focusX}, ${focusY})`);
-      await Computer.clickAt(focusX, focusY);
-      await Computer.wait(0.3);
-      executedActions.push(`Focused browser window`);
+      // Build the prompt for this iteration
+      const prompt =
+        iteration === 1
+          ? `You are a medical workflow automation assistant. Your goal: "${goal}"
+
+Screen dimensions: ${displayDimensions.width}x${displayDimensions.height}
+
+CONTEXT:
+- Heidi Health (scribe.heidihealth.com) is a medical scribe platform with clinical notes
+- EMR (Electronic Medical Record) is where these notes need to be pasted
+- You need to: 1) Find and focus Heidi, 2) Select and copy the notes, 3) Switch to EMR/notes app, 4) Paste
+
+Look at the current screen and decide the NEXT SINGLE ACTION to accomplish this goal.
+
+${AVAILABLE_ACTIONS}
+
+Respond with JSON:
+{
+  "thinking": "what you see and why you're taking these actions",
+  "actions": ["action1", "action2", "action3"],
+  "isComplete": false
+}
+
+When notes are successfully pasted in the EMR/notes app, set "isComplete": true and "actions": ["done"].
+
+IMPORTANT: You can return MULTIPLE actions that will be executed in sequence. Group related actions together (e.g., ["click: 500,300", "key: cmd+a", "key: cmd+c"]).`
+          : `Continue: "${goal}"
+
+Previous actions: ${executedActions.slice(-5).join(" → ")}
+
+What are the NEXT ACTIONS to take? Same JSON format with actions array.`;
+
+      // Query Claude with vision
+      const result = await generateText({
+        model: anthropic("claude-sonnet-4-5"),
+        messages: [
+          ...conversationHistory,
+          {
+            role: "user" as const,
+            content: [
+              {
+                type: "image",
+                image: screenshot,
+              },
+              {
+                type: "text",
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        temperature: 0.1,
+      });
+
+      console.log("AI Response:", result.text);
+
+      // Parse the response
+      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON found in AI response");
+      }
+
+      const decision = JSON.parse(jsonMatch[0]);
+      console.log("Decision:", decision);
+      console.log("Thinking:", decision.thinking);
+
+      // Add to conversation history
+      conversationHistory.push({
+        role: "user",
+        content: prompt,
+      });
+      conversationHistory.push({
+        role: "assistant",
+        content: result.text,
+      });
+
+      // Keep conversation history manageable
+      if (conversationHistory.length > 10) {
+        conversationHistory = conversationHistory.slice(-10);
+      }
+
+      // Check if complete
+      if (decision.isComplete) {
+        console.log("✓ Workflow marked as complete!");
+        isComplete = true;
+        break;
+      }
+
+      // Execute the actions
+      const actions = Array.isArray(decision.actions)
+        ? decision.actions
+        : [decision.action].filter(Boolean);
+      if (actions.length > 0 && actions[0] !== "done") {
+        console.log(
+          `Executing ${actions.length} action(s): ${actions.join(", ")}`
+        );
+        for (const action of actions) {
+          const actionResult = await executeAction(action);
+          executedActions.push(action);
+          console.log(`Result: ${actionResult}`);
+        }
+      }
     }
 
-    // Step 3: Select and copy the text content
-    executedActions.push("Selecting text content on Heidi Health...");
-    try {
-      // Click in the main content area (slightly left of center and upper-middle)
-      const displayDimensions = await Computer.getDisplayDimensions();
-      // Click at 40% from left, 40% from top (avoid sidebars and headers)
-      const centerX = Math.round(displayDimensions.width * 0.4);
-      const centerY = Math.round(displayDimensions.height * 0.4);
-
-      console.log(`📍 Clicking in content area at (${centerX}, ${centerY})`);
-      await Computer.clickAt(centerX, centerY);
-      await Computer.wait(0.3);
-      executedActions.push(
-        `Clicked in content area at (${centerX}, ${centerY})`
-      );
-
-      // Select all text
-      console.log(`📋 Selecting all content (Cmd+A)`);
-      await Computer.pressKey("cmd+a");
-      await Computer.wait(0.3);
-      executedActions.push("Selected all content");
-
-      // Copy
-      console.log(`📋 Copying content (Cmd+C)`);
-      await Computer.pressKey("cmd+c");
-      await Computer.wait(0.5);
-      executedActions.push("Copied content to clipboard");
-    } catch (copyError) {
+    if (!isComplete && iteration >= maxIterations) {
       return {
         success: false,
-        message: `Failed to copy content: ${copyError instanceof Error ? copyError.message : String(copyError)}`,
+        message: `Heidi workflow not completed after ${maxIterations} iterations`,
         actions: executedActions,
       };
     }
-
-    // Step 4: Find and switch to EMR/Notes app
-    if (analysis.hasEMR && analysis.emrTabIndex !== analysis.heidiTabIndex) {
-      // EMR is in a different tab - switch tabs
-      executedActions.push("EMR detected in different tab - switching to it");
-
-      const tabDiff = analysis.emrTabIndex! - analysis.heidiTabIndex!;
-      if (tabDiff > 0) {
-        // Switch forward
-        for (let i = 0; i < tabDiff; i++) {
-          await Computer.pressKey("cmd+shift+]");
-          await Computer.wait(0.3);
-        }
-      } else if (tabDiff < 0) {
-        // Switch backward
-        for (let i = 0; i < Math.abs(tabDiff); i++) {
-          await Computer.pressKey("cmd+shift+[");
-          await Computer.wait(0.3);
-        }
-      }
-      executedActions.push("Switched to EMR tab");
-    } else {
-      // EMR is same tab OR not detected - switch to different app (Notes, etc)
-      executedActions.push("Switching to different app (Cmd+Tab)");
-      await Computer.pressKey("cmd+tab");
-      await Computer.wait(1.5); // Wait longer for app to fully switch
-      executedActions.push("Switched to next application");
-    }
-
-    // Step 5: Focus the target app and click in text area
-    executedActions.push("Focusing target application...");
-    const displayDimensions2 = await Computer.getDisplayDimensions();
-
-    // First, click on the top of the window to ensure it's focused (title bar area)
-    const focusAppX = Math.round(displayDimensions2.width * 0.5);
-    const focusAppY = 50; // Top area
-
-    console.log(
-      `🎯 Clicking to focus target app at (${focusAppX}, ${focusAppY})`
-    );
-    await Computer.clickAt(focusAppX, focusAppY);
-    await Computer.wait(0.3);
-    executedActions.push(`Focused target application`);
-
-    // Now click in the text area
-    executedActions.push("Looking for text input area...");
-    // Click in a better position - left-center area where text editors usually are
-    const pasteX = Math.round(displayDimensions2.width * 0.3);
-    const pasteY = Math.round(displayDimensions2.height * 0.3);
-
-    console.log(`📍 Clicking in paste area at (${pasteX}, ${pasteY})`);
-    await Computer.clickAt(pasteX, pasteY);
-    await Computer.wait(0.3);
-    executedActions.push(`Clicked in text area at (${pasteX}, ${pasteY})`);
-
-    // Paste
-    await Computer.pressKey("cmd+v");
-    executedActions.push("Pasted content");
 
     return {
       success: true,
@@ -247,7 +183,7 @@ async function executeHeidiToEMRWorkflow(): Promise<CommandResult> {
 }
 
 /**
- * Interpret a natural language command and execute it using computer.ts
+ * Interpret a natural language command and execute it using computer.ts with vision-based loop
  */
 export async function interpretAndExecuteCommand(
   command: string
@@ -269,100 +205,157 @@ export async function interpretAndExecuteCommand(
       return await executeHeidiToEMRWorkflow();
     }
 
-    // Use Claude to interpret the command and generate actions
-    const result = await generateText({
-      model: anthropic("claude-sonnet-4-5"),
-      messages: [
-        {
-          role: "user",
-          content: `You are a desktop automation assistant. The user said: "${command}"
-
-Your task is to interpret this command and convert it into a sequence of computer actions.
-
-Available actions:
-- type: Type text (e.g., "type: Hello World")
-- click: Click at coordinates (e.g., "click: 100,200")
-- key: Press a key (e.g., "key: return", "key: cmd+space", "key: cmd+tab", "key: cmd+shift+]" for next browser tab, "key: cmd+shift+[" for previous browser tab)
-- wait: Wait for seconds (e.g., "wait: 2")
-- open_app: Open an application (e.g., "open_app: Safari")
-- copy: Copy selected text (e.g., "copy")
-- paste: Paste from clipboard (e.g., "paste")
-- select_all: Select all text (e.g., "select_all")
-- focus_url: Focus URL bar and navigate (e.g., "focus_url: scribe.heidihealth.com")
-
-Respond with a JSON object containing:
-{
-  "interpretation": "brief description of what you understood",
-  "actions": ["action1", "action2", ...]
-}
-
-Examples:
-Command: "Open Safari and go to Google"
-Response: {"interpretation": "Opening Safari browser and navigating to Google", "actions": ["key: cmd+space", "wait: 0.5", "type: Safari", "wait: 0.5", "key: return", "wait: 2", "key: cmd+l", "wait: 0.5", "type: google.com", "key: return"]}
-
-Command: "Type hello world"
-Response: {"interpretation": "Typing the text 'hello world'", "actions": ["type: hello world"]}
-
-Command: "Copy notes from Heidi and paste to EMR"
-Response: {"interpretation": "Copying text from Heidi Health scribe and pasting to EMR system", "actions": ["key: cmd+tab", "wait: 1", "select_all", "wait: 0.3", "copy", "wait: 0.5", "key: cmd+tab", "wait: 1", "click: 500,400", "wait: 0.5", "paste"]}
-
-Command: "Click copy button on Heidi and paste to notes"
-Response: {"interpretation": "Copying text from Heidi Health scribe and pasting to note app", "actions": ["key: cmd+tab", "wait: 1", "select_all", "wait: 0.3", "copy", "wait: 0.5", "key: cmd+tab", "wait: 1", "click: 500,400", "wait: 0.5", "paste"]}
-
-IMPORTANT: For Heidi Health workflows:
-- scribe.heidihealth.com is the medical scribe platform where clinical notes are generated
-- EMR (Electronic Medical Record) is where doctors/nurses paste the notes
-- You may need to switch browser tabs or applications to go between Heidi and EMR or notes app
-- Use cmd+tab to switch between applications
-
-Now interpret: "${command}"`,
-        },
-      ],
-      temperature: 0.3,
-    });
-
-    console.log("AI Response:", result.text);
-
-    // Parse the AI response
-    let interpretation: { interpretation: string; actions: string[] };
-    try {
-      // Extract JSON from the response (it might be wrapped in markdown)
-      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON found in response");
-      }
-      interpretation = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error("Error parsing AI response:", parseError);
-      throw new Error("Failed to parse command interpretation");
-    }
-
-    if (!interpretation.actions || !Array.isArray(interpretation.actions)) {
-      throw new Error("Invalid interpretation format");
-    }
-
-    console.log("Interpretation:", interpretation.interpretation);
-    console.log("Actions to execute:", interpretation.actions);
-
-    // Execute https://scribe.heidihealth.com/scribe/session/11587368312302962312175126235884623728#selectedOrganizationId=null&reviewMember=%22kp_c4f40bcb87d34128942e21442b5395f3%22&chooseNoteStructureModal=falseeach action sequentially
-    const executedActions: string[] = [];
-    for (const action of interpretation.actions) {
-      const actionResult = await executeAction(action);
-      executedActions.push(actionResult);
-      console.log("Executed:", actionResult);
-    }
-
-    return {
-      success: true,
-      message: interpretation.interpretation,
-      actions: executedActions,
-    };
+    // Use vision-based loop for complex commands
+    return await executeCommandWithVisionLoop(command);
   } catch (error: unknown) {
     console.error("Error interpreting command:", error);
     return {
       success: false,
       message:
         error instanceof Error ? error.message : "Failed to execute command",
+    };
+  }
+}
+
+/**
+ * Execute command using a vision-based loop where AI sees the screen and decides next action
+ */
+async function executeCommandWithVisionLoop(
+  command: string,
+  maxIterations = 20
+): Promise<CommandResult> {
+  try {
+    console.log("Starting vision-based command loop for:", command);
+
+    const executedActions: string[] = [];
+    let iteration = 0;
+    let isComplete = false;
+    let conversationHistory: ModelMessage[] = [];
+
+    while (iteration < maxIterations && !isComplete) {
+      iteration++;
+      console.log(`\n=== Iteration ${iteration}/${maxIterations} ===`);
+
+      // Take screenshot
+      const screenshot = await Computer.takeScreenshot();
+      const displayDimensions = await Computer.getDisplayDimensions();
+
+      // Build the prompt for this iteration
+      const prompt =
+        iteration === 1
+          ? `You are a desktop automation assistant. The user wants you to: "${command}"
+
+Screen dimensions: ${displayDimensions.width}x${displayDimensions.height}
+
+Look at the current screen and decide the NEXT SINGLE ACTION to take to accomplish this goal.
+
+${AVAILABLE_ACTIONS}
+
+Respond with a JSON object:
+{
+  "thinking": "what you see and why you're taking these actions",
+  "actions": ["action1", "action2", "action3"],
+  "isComplete": false
+}
+
+When the task is fully complete, set "isComplete": true and set "actions": ["done"].
+
+IMPORTANT: You can return MULTIPLE actions that will be executed in sequence. Group related actions together for speed (e.g., ["key: cmd+space", "type: Safari", "key: return"]).`
+          : `Continue with: "${command}"
+
+Previous actions: ${executedActions.slice(-5).join(" → ")}
+
+What are the NEXT ACTIONS to take? Return the same JSON format with actions array.`;
+
+      // Query Claude with vision
+      const result = await generateText({
+        model: anthropic("claude-sonnet-4-5"),
+        messages: [
+          ...conversationHistory,
+          {
+            role: "user" as const,
+            content: [
+              {
+                type: "image",
+                image: screenshot,
+              },
+              {
+                type: "text",
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        temperature: 0.2,
+      });
+
+      console.log("AI Response:", result.text);
+
+      // Parse the response
+      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON found in AI response");
+      }
+
+      const decision = JSON.parse(jsonMatch[0]);
+      console.log("Decision:", decision);
+
+      // Add to conversation history (without the image to save tokens)
+      conversationHistory.push({
+        role: "user",
+        content: prompt,
+      });
+      conversationHistory.push({
+        role: "assistant",
+        content: result.text,
+      });
+
+      // Keep conversation history manageable (last 4 exchanges)
+      if (conversationHistory.length > 8) {
+        conversationHistory = conversationHistory.slice(-8);
+      }
+
+      // Check if complete
+      if (decision.isComplete) {
+        console.log("Task marked as complete!");
+        isComplete = true;
+        break;
+      }
+
+      // Execute the actions
+      const actions = Array.isArray(decision.actions)
+        ? decision.actions
+        : [decision.action].filter(Boolean);
+      if (actions.length > 0 && actions[0] !== "done") {
+        console.log(
+          `Executing ${actions.length} action(s): ${actions.join(", ")}`
+        );
+        for (const action of actions) {
+          const actionResult = await executeAction(action);
+          executedActions.push(action);
+          console.log(`Result: ${actionResult}`);
+        }
+      }
+    }
+
+    if (!isComplete && iteration >= maxIterations) {
+      return {
+        success: false,
+        message: `Command not completed after ${maxIterations} iterations`,
+        actions: executedActions,
+      };
+    }
+
+    return {
+      success: true,
+      message: `Completed: ${command}`,
+      actions: executedActions,
+    };
+  } catch (error: unknown) {
+    console.error("Error in vision loop:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Vision loop failed",
     };
   }
 }
@@ -445,74 +438,8 @@ async function executeAction(action: string): Promise<string> {
       return await Computer.pressKey("cmd+a");
     }
 
-    case "focus_url": {
-      // Focus URL bar and type URL
-      await Computer.pressKey("cmd+l");
-      await Computer.wait(0.3);
-      await Computer.type(param);
-      await Computer.pressKey("return");
-      return `Navigating to ${param}`;
-    }
-
     default: {
       throw new Error(`Unknown action type: ${actionType}`);
     }
-  }
-}
-
-/**
- * Simple command interpreter for basic commands without AI
- * This is a fallback or can be used for quick testing
- */
-export async function executeSimpleCommand(
-  command: string
-): Promise<CommandResult> {
-  try {
-    const lowerCommand = command.toLowerCase();
-
-    // Simple pattern matching for common commands
-    if (lowerCommand.includes("open") && lowerCommand.includes("safari")) {
-      await Computer.pressKey("cmd+space");
-      await Computer.wait(0.5);
-      await Computer.type("Safari");
-      await Computer.wait(0.5);
-      await Computer.pressKey("return");
-      return {
-        success: true,
-        message: "Opened Safari",
-        actions: ["cmd+space", "type Safari", "return"],
-      };
-    }
-
-    if (lowerCommand.includes("type")) {
-      const textMatch = lowerCommand.match(/type\s+(.+)/);
-      if (textMatch) {
-        const text = textMatch[1];
-        await Computer.type(text);
-        return {
-          success: true,
-          message: `Typed: ${text}`,
-          actions: [`type ${text}`],
-        };
-      }
-    }
-
-    if (lowerCommand.includes("screenshot")) {
-      await Computer.takeScreenshot();
-      return {
-        success: true,
-        message: "Screenshot taken",
-        actions: ["screenshot"],
-      };
-    }
-
-    // Default: use AI interpreter
-    return await interpretAndExecuteCommand(command);
-  } catch (error: unknown) {
-    return {
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Failed to execute command",
-    };
   }
 }
