@@ -38,11 +38,11 @@ const config: ForgeConfig = {
       renderer: [
         {
           name: 'main_window',
-          config: 'vite.renderer.config.ts',
+          config: 'vite.renderer.config.mts',
         },
         {
           name: 'overlay_window',
-          config: 'vite.overlay.config.ts',
+          config: 'vite.overlay.config.mts',
         },
       ],
     }),
