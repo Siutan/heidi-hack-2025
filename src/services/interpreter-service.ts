@@ -194,7 +194,7 @@ async function executeHeidiToEMRWorkflow(): Promise<CommandResult> {
     const executedActions: string[] = [];
     executedActions.push(`Screen analysis: ${analysis.description}`);
 
-    // Step 2: If Heidi Health is not visible, try to find it
+    // Step 2: Ensure browser with Heidi Health is focused
     if (!analysis.hasHeidiHealth) {
       executedActions.push(
         "Heidi Health not found - searching for browser window"
@@ -215,6 +215,18 @@ async function executeHeidiToEMRWorkflow(): Promise<CommandResult> {
         };
       }
       executedActions.push("Found Heidi Health");
+    } else {
+      // Heidi is visible but might not be focused - click on browser to ensure focus
+      executedActions.push("Ensuring browser is focused...");
+      const displayDimensions = await Computer.getDisplayDimensions();
+      // Click on browser title bar/URL area to focus it
+      const focusX = Math.round(displayDimensions.width * 0.5);
+      const focusY = 50; // Top area where URL bar typically is
+
+      console.log(`🎯 Clicking browser to focus at (${focusX}, ${focusY})`);
+      await Computer.clickAt(focusX, focusY);
+      await Computer.wait(0.3);
+      executedActions.push(`Focused browser window`);
     }
 
     // Step 3: Click the copy button on Heidi
