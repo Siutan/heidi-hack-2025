@@ -44,9 +44,16 @@
     "vite": "^5.4.21"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.50",
+    "@google/generative-ai": "^0.24.1",
+    "@types/screenshot-desktop": "^1.15.0",
+    "ai": "^5.0.104",
+    "dotenv": "^17.2.3",
     "electron-squirrel-startup": "^1.0.1",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "screenshot-desktop": "^1.15.3",
+    "sharp": "^0.34.5"
   }
 }
