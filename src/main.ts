@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen } from 'electron';
+import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -7,14 +7,22 @@ if (started) {
   app.quit();
 }
 
+ipcMain.on('resize-window', (event, width, height) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    win.setSize(width, height);
+  }
+});
+
 declare const OVERLAY_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const OVERLAY_WINDOW_VITE_NAME: string;
 
 const createOverlayWindow = () => {
   const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
   const padding = 20;
-  const windowWidth = screenWidth - (padding * 2);
+  const windowWidth = 550 - (padding * 2);
   const windowHeight = 100;
+  console.log({screenWidth, windowWidth, windowHeight})
 
   const overlayWindow = new BrowserWindow({
     width: windowWidth,
