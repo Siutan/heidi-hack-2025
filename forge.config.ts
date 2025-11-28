@@ -42,7 +42,7 @@ const config: ForgeConfig = {
         },
         {
           name: 'overlay_window',
-          config: 'vite.renderer.config.ts',
+          config: 'vite.overlay.config.ts',
         },
       ],
     }),

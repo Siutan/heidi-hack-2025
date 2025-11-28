@@ -37,10 +37,10 @@ const createOverlayWindow = () => {
   overlayWindow.setAlwaysOnTop(true, 'floating', 1);
 
   if (OVERLAY_WINDOW_VITE_DEV_SERVER_URL) {
-    overlayWindow.loadURL(OVERLAY_WINDOW_VITE_DEV_SERVER_URL);
+    overlayWindow.loadURL(`${OVERLAY_WINDOW_VITE_DEV_SERVER_URL}/overlay.html`);
   } else {
     overlayWindow.loadFile(
-      path.join(__dirname, `../renderer/${OVERLAY_WINDOW_VITE_NAME}/index.html`),
+      path.join(__dirname, `../renderer/${OVERLAY_WINDOW_VITE_NAME}/overlay.html`),
     );
   }
 
