@@ -98,18 +98,10 @@ const OverlayApp = () => {
         <div className="flex items-center justify-between px-4 py-3 h-[68px] shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
-              <Command className="w-6 h-6 text-gray-800" />
+              <img src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
             </div>
             
-            {view === 'response' ? (
-              <div className="flex flex-col">
-                <span className="font-bold text-lg text-gray-900 shrink-0">From Dee</span>
-              </div>
-            ) : view === 'recording' ? (
-              <div className="flex items-center">
-                <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
-              </div>
-            ) : (
+            
               <div className="flex flex-col cursor-pointer" onClick={startRecording}>
                 <div className="flex items-center gap-1">
                   <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
@@ -117,7 +109,6 @@ const OverlayApp = () => {
                 </div>
                 <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
               </div>
-            )}
           </div>
 
           <div className="flex items-center gap-3">
