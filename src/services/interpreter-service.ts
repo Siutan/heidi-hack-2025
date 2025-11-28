@@ -15,6 +15,8 @@ interface CommandResult {
   actions?: string[];
 }
 
+const AI_MODEL = anthropic("claude-sonnet-4-5-20250929");
+
 /**
  * Available actions that can be executed by the automation system
  */
@@ -90,7 +92,7 @@ What are the NEXT ACTIONS to take? Same JSON format with actions array.`;
 
       // Query Claude with vision
       const result = await generateText({
-        model: anthropic("claude-sonnet-4-5"),
+        model: AI_MODEL,
         messages: [
           ...conversationHistory,
           {
@@ -269,7 +271,7 @@ What are the NEXT ACTIONS to take? Return the same JSON format with actions arra
 
       // Query Claude with vision
       const result = await generateText({
-        model: anthropic("claude-sonnet-4-5"),
+        model: AI_MODEL,
         messages: [
           ...conversationHistory,
           {
