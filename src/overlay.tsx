@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Command, ChevronDown, ChevronUp, Activity, GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import './overlay.css';
 
 type ViewState = 'idle' | 'expanded' | 'recording' | 'response';

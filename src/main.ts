@@ -10,7 +10,11 @@ if (started) {
 ipcMain.on('resize-window', (event, width, height) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) {
-    win.setSize(width, height, true);
+    const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+    const padding = 20;
+    const x = screenWidth - width - padding;
+    const y = padding;
+    win.setBounds({ x, y, width, height }, true);
   }
 });
 
@@ -27,7 +31,7 @@ const createOverlayWindow = () => {
   const overlayWindow = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
-    x: padding,
+    x: screenWidth - windowWidth - padding,
     y: padding,
     frame: false,
     transparent: true,
