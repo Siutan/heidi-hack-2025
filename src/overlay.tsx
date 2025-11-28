@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import './overlay.css';
 
 type ViewState = 'idle' | 'expanded' | 'recording' | 'response';
@@ -11,6 +11,16 @@ const OverlayApp = () => {
   const [transcript, setTranscript] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const phrases = [
+    'record a session',
+    'lets fill out a file',
+    'Who is next',
+    'catch me up on the next patient',
+  ];
+  const [activePhraseIndex, setActivePhraseIndex] = useState(0);
+  const [isPhraseVisible, setIsPhraseVisible] = useState(true);
+  const phraseIntervalRef = useRef<number | null>(null);
+  const phraseTimeoutRef = useRef<number | null>(null);
 
   const toggleShortcuts = () => {
     if (view === 'idle') setView('expanded');
@@ -90,6 +100,22 @@ const OverlayApp = () => {
     }
   }, [view]);
 
+  useEffect(() => {
+    const DISPLAY_MS = 4000;
+    const TRANSITION_MS = 500;
+    phraseIntervalRef.current = window.setInterval(() => {
+      setIsPhraseVisible(false);
+      phraseTimeoutRef.current = window.setTimeout(() => {
+        setActivePhraseIndex((prev) => (prev + 1) % phrases.length);
+        setIsPhraseVisible(true);
+      }, TRANSITION_MS);
+    }, DISPLAY_MS);
+    return () => {
+      if (phraseIntervalRef.current) window.clearInterval(phraseIntervalRef.current);
+      if (phraseTimeoutRef.current) window.clearTimeout(phraseTimeoutRef.current);
+    };
+  }, []);
+
   return (
     <div className="w-full h-full flex flex-col items-center justify-start p-2">
       <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#C9B4BB] overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}>
@@ -105,7 +131,9 @@ const OverlayApp = () => {
               <div className="flex flex-col  w-[400px] cursor-pointer" onClick={startRecording}>
                 <div className="flex items-center gap-1">
                   <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
-                  <span className="text-gray-400 text-md shrink-0">Record a session</span>
+                <span className={`text-gray-400 text-md shrink-0 transition-all duration-500 ease-in-out ${isPhraseVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
+                  {phrases[activePhraseIndex]}
+                </span>
                 </div>
                 <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
               </div>
