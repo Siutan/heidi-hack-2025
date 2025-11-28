@@ -16,96 +16,6 @@ interface CommandResult {
 }
 
 /**
- * Find and click an element on screen using AI vision
- */
-async function findAndClickElement(elementText: string): Promise<string> {
-  try {
-    console.log(`Finding element with text: "${elementText}"`);
-
-    // Take a screenshot
-    const screenshot = await Computer.takeScreenshot();
-    const displayDimensions = await Computer.getDisplayDimensions();
-
-    // Use Claude to locate the element
-    const result = await generateText({
-      model: anthropic("claude-sonnet-4-5"),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              image: screenshot,
-            },
-            {
-              type: "text",
-              text: `Find the button or clickable element with the text "${elementText}" (case insensitive) on this screen.
-
-Screen dimensions: ${displayDimensions.width}x${displayDimensions.height}
-
-IMPORTANT: Look carefully for:
-- Buttons with text "${elementText}" or "Copy to clipboard" or icons that look like copy/clipboard
-- Links or clickable text containing "${elementText}"
-- Icon buttons (may have copy icon like two overlapping squares/documents)
-- The element might be in the top-right area, toolbar, or near clinical notes
-- On scribe.heidihealth.com, copy buttons are often blue or purple colored
-
-Scan the ENTIRE screen systematically from top to bottom.
-
-Return ONLY a JSON object with the EXACT center coordinates of the clickable element:
-{"x": 123, "y": 456, "description": "brief description of what you found"}
-
-If you cannot find ANY copy-related element, return:
-{"error": "Element not found", "suggestion": "describe what IS visible on screen"}`,
-            },
-          ],
-        },
-      ],
-      temperature: 0,
-    });
-
-    console.log("Vision AI Response:", result.text);
-
-    // Parse the response
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in AI response");
-    }
-    const coordinates = JSON.parse(jsonMatch[0]);
-
-    if (coordinates.error) {
-      const errorMsg = coordinates.suggestion
-        ? `${coordinates.error}. ${coordinates.suggestion}`
-        : coordinates.error;
-      throw new Error(errorMsg);
-    }
-
-    if (!coordinates.x || !coordinates.y) {
-      throw new Error("Invalid coordinates returned");
-    }
-
-    console.log(`Found element: ${coordinates.description || elementText}`);
-    console.log(
-      `Clicking at coordinates: (${coordinates.x}, ${coordinates.y})`
-    );
-
-    // Click at the found coordinates
-    await Computer.clickAt(coordinates.x, coordinates.y);
-
-    const resultMsg = coordinates.description
-      ? `Clicked "${coordinates.description}" at (${coordinates.x}, ${coordinates.y})`
-      : `Clicked "${elementText}" at (${coordinates.x}, ${coordinates.y})`;
-
-    return resultMsg;
-  } catch (error) {
-    console.error("Error finding and clicking element:", error);
-    throw new Error(
-      `Failed to find and click "${elementText}": ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-}
-
-/**
  * Analyze the current screen to detect Heidi Health and EMR applications
  */
 async function analyzeCurrentScreen(): Promise<{
@@ -229,77 +139,80 @@ async function executeHeidiToEMRWorkflow(): Promise<CommandResult> {
       executedActions.push(`Focused browser window`);
     }
 
-    // Step 3: Click the copy button on Heidi
-    executedActions.push("Looking for copy button on Heidi Health...");
+    // Step 3: Select and copy the text content
+    executedActions.push("Selecting text content on Heidi Health...");
     try {
-      const copyResult = await findAndClickElement("Copy");
-      executedActions.push(copyResult);
-      await Computer.wait(1);
-    } catch (copyError) {
-      // If "Copy" fails, try looking for clipboard icon or "Copy to clipboard"
+      // Click in the main content area (slightly left of center and upper-middle)
+      const displayDimensions = await Computer.getDisplayDimensions();
+      // Click at 40% from left, 40% from top (avoid sidebars and headers)
+      const centerX = Math.round(displayDimensions.width * 0.4);
+      const centerY = Math.round(displayDimensions.height * 0.4);
+
+      console.log(`📍 Clicking in content area at (${centerX}, ${centerY})`);
+      await Computer.clickAt(centerX, centerY);
+      await Computer.wait(0.3);
       executedActions.push(
-        `First attempt failed: ${copyError instanceof Error ? copyError.message : String(copyError)}`
-      );
-      executedActions.push(
-        "Trying alternative: looking for clipboard icon or copy-related buttons..."
+        `Clicked in content area at (${centerX}, ${centerY})`
       );
 
-      try {
-        const altResult = await findAndClickElement("Copy to clipboard");
-        executedActions.push(altResult);
-        await Computer.wait(1);
-      } catch (altError) {
-        return {
-          success: false,
-          message:
-            "Could not find copy button on Heidi Health page. Please ensure the clinical notes are visible and the copy button is on screen.",
-          actions: executedActions,
-        };
-      }
+      // Select all text
+      console.log(`📋 Selecting all content (Cmd+A)`);
+      await Computer.pressKey("cmd+a");
+      await Computer.wait(0.3);
+      executedActions.push("Selected all content");
+
+      // Copy
+      console.log(`📋 Copying content (Cmd+C)`);
+      await Computer.pressKey("cmd+c");
+      await Computer.wait(0.5);
+      executedActions.push("Copied content to clipboard");
+    } catch (copyError) {
+      return {
+        success: false,
+        message: `Failed to copy content: ${copyError instanceof Error ? copyError.message : String(copyError)}`,
+        actions: executedActions,
+      };
     }
 
-    // Step 4: Find and switch to EMR
-    if (analysis.hasEMR) {
-      executedActions.push("EMR detected - switching to it");
+    // Step 4: Find and switch to EMR/Notes app
+    if (analysis.hasEMR && analysis.emrTabIndex !== analysis.heidiTabIndex) {
+      // EMR is in a different tab - switch tabs
+      executedActions.push("EMR detected in different tab - switching to it");
 
-      // If we know the tab index, calculate how many tabs to switch
-      if (analysis.emrTabIndex && analysis.heidiTabIndex) {
-        const tabDiff = analysis.emrTabIndex - analysis.heidiTabIndex;
-        if (tabDiff > 0) {
-          // Switch forward
-          for (let i = 0; i < tabDiff; i++) {
-            await Computer.pressKey("cmd+shift+]");
-            await Computer.wait(0.3);
-          }
-        } else if (tabDiff < 0) {
-          // Switch backward
-          for (let i = 0; i < Math.abs(tabDiff); i++) {
-            await Computer.pressKey("cmd+shift+[");
-            await Computer.wait(0.3);
-          }
+      const tabDiff = analysis.emrTabIndex! - analysis.heidiTabIndex!;
+      if (tabDiff > 0) {
+        // Switch forward
+        for (let i = 0; i < tabDiff; i++) {
+          await Computer.pressKey("cmd+shift+]");
+          await Computer.wait(0.3);
         }
-      } else {
-        // Just try next tab
-        await Computer.pressKey("cmd+shift+]");
-        await Computer.wait(0.5);
+      } else if (tabDiff < 0) {
+        // Switch backward
+        for (let i = 0; i < Math.abs(tabDiff); i++) {
+          await Computer.pressKey("cmd+shift+[");
+          await Computer.wait(0.3);
+        }
       }
       executedActions.push("Switched to EMR tab");
     } else {
-      executedActions.push("EMR not detected - trying next tab");
-      await Computer.pressKey("cmd+shift+]");
-      await Computer.wait(0.5);
+      // EMR is same tab OR not detected - switch to different app (Notes, etc)
+      executedActions.push("Switching to different app (Cmd+Tab)");
+      await Computer.pressKey("cmd+tab");
+      await Computer.wait(1.5); // Wait longer for app to fully switch
+      executedActions.push("Switched to next application");
     }
 
     // Step 5: Click in a text area and paste
     executedActions.push("Looking for text input area...");
-    const displayDimensions = await Computer.getDisplayDimensions();
-    // Click in the center of the screen (likely where a text field would be)
-    await Computer.clickAt(
-      displayDimensions.width / 2,
-      displayDimensions.height / 2
-    );
+    const displayDimensions2 = await Computer.getDisplayDimensions();
+    // Click in a better position - left-center area where text editors usually are
+    const pasteX = Math.round(displayDimensions2.width * 0.3);
+    const pasteY = Math.round(displayDimensions2.height * 0.3);
+
+    console.log(`📍 Clicking in paste area at (${pasteX}, ${pasteY})`);
+    await Computer.clickAt(pasteX, pasteY);
     await Computer.wait(0.3);
-    executedActions.push("Clicked in text area");
+    executedActions.push(`Clicked in text area at (${pasteX}, ${pasteY})`);
 
     // Paste
     await Computer.pressKey("cmd+v");
@@ -362,7 +275,6 @@ Available actions:
 - paste: Paste from clipboard (e.g., "paste")
 - select_all: Select all text (e.g., "select_all")
 - focus_url: Focus URL bar and navigate (e.g., "focus_url: scribe.heidihealth.com")
-- find_and_click: Search for text on screen and click it (e.g., "find_and_click: Copy" to click a copy button)
 
 Respond with a JSON object containing:
 {
@@ -381,13 +293,13 @@ Command: "Copy notes from Heidi and paste to EMR"
 Response: {"interpretation": "Copying text from Heidi Health scribe and pasting to EMR system", "actions": ["key: cmd+tab", "wait: 1", "select_all", "wait: 0.3", "copy", "wait: 0.5", "key: cmd+tab", "wait: 1", "click: 500,400", "wait: 0.5", "paste"]}
 
 Command: "Click copy button on Heidi and paste to notes"
-Response: {"interpretation": "Clicking the copy button on Heidi Health page and pasting to notes tab", "actions": ["find_and_click: Copy", "wait: 1", "key: cmd+shift+]", "wait: 0.5", "click: 500,300", "wait: 0.3", "paste"]}
+Response: {"interpretation": "Copying text from Heidi Health scribe and pasting to EMR system", "actions": ["key: cmd+tab", "wait: 1", "select_all", "wait: 0.3", "copy", "wait: 0.5", "key: cmd+tab", "wait: 1", "click: 500,400", "wait: 0.5", "paste"]}
 
 IMPORTANT: For Heidi Health workflows:
 - scribe.heidihealth.com is the medical scribe platform where clinical notes are generated
 - The page has UI buttons like "Copy", "Copy to Clipboard", "Export", etc.
 - EMR (Electronic Medical Record) is where doctors/nurses paste the notes
-- Use "find_and_click: ButtonText" to click buttons on web pages
+- You may need to switch browser tabs or applications to go between Heidi and EMR or notes app
 - Use cmd+shift+] to switch to next browser tab, cmd+shift+[ for previous tab
 - Use cmd+tab to switch between applications
 - Common workflow: Click copy button on Heidi → switch tab → paste to EMR/notes
@@ -529,11 +441,6 @@ async function executeAction(action: string): Promise<string> {
       await Computer.type(param);
       await Computer.pressKey("return");
       return `Navigating to ${param}`;
-    }
-
-    case "find_and_click": {
-      // Take screenshot, use AI to find the element, then click it
-      return await findAndClickElement(param);
     }
 
     default: {
