@@ -133,7 +133,7 @@ const OverlayApp = () => {
             ) : (
               <button 
                 onClick={toggleShortcuts}
-                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0 bg-gray-100 px-3 py-1.5 rounded-lg"
+                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0"
               >
                 View Shortcuts
                 {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
