@@ -113,7 +113,7 @@ const OverlayApp = () => {
               <div className="flex flex-col cursor-pointer" onClick={startRecording}>
                 <div className="flex items-center gap-1">
                   <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
-                  <span className="text-gray-400 text-lg shrink-0">Record a session</span>
+                  <span className="text-gray-400 text-md shrink-0">Record a session</span>
                 </div>
                 <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
               </div>
