@@ -12,9 +12,9 @@ declare const OVERLAY_WINDOW_VITE_NAME: string;
 
 const createOverlayWindow = () => {
   const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
-  const windowWidth = 350;
+  const windowWidth = 550;
   const windowHeight = 100;
-  const padding = 20;
+  const padding = 10;
 
   const overlayWindow = new BrowserWindow({
     width: windowWidth,

@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+.drag-handle {
+  -webkit-app-region: drag;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
 body {
   margin: 0;
   padding: 0;
