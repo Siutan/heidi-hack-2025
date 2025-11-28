@@ -95,42 +95,37 @@ const OverlayApp = () => {
       <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#C9B4BB] overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}>
         
         {/* Header Section */}
-        <div className="flex items-center justify-between px-4 py-3 h-[68px] shrink-0">
+        <div className="flex items-center justify-between px-2 py-2 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
               <img src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
             </div>
             
             
-              <div className="flex flex-col cursor-pointer" onClick={startRecording}>
+              <div className="flex flex-col  w-[400px] cursor-pointer" onClick={startRecording}>
                 <div className="flex items-center gap-1">
                   <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
                   <span className="text-gray-400 text-md shrink-0">Record a session</span>
                 </div>
-                <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
+                  <button 
+                  onClick={toggleShortcuts}
+                  className="flex items-center gap-1 text-gray-500 font-medium hover:bg-gray-100 hover:rounded-lg"
+                  >
+                  <p className="text-xs">View Shortcuts</p>
+                  {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+                </div>
               </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {view === 'recording' ? (
-               <div className="flex items-center gap-1 h-8">
-                 {/* Fake waveform animation */}
+               {/* <div className="flex items-center gap-1 h-8">
                  {[...Array(8)].map((_, i) => (
                    <div key={i} className="w-1 bg-rose-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }}></div>
                  ))}
-               </div>
-            ) : view === 'response' ? (
-              <div className="text-xs text-gray-500 cursor-pointer hover:text-gray-700" onClick={reset}>Close</div>
-            ) : (
-              <button 
-                onClick={toggleShortcuts}
-                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0"
-              >
-                View Shortcuts
-                {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-            )}
-            
+               </div> */}
             {/* Drag Handle */}
             <div className="drag-handle p-1 hover:bg-gray-100 rounded-md transition-colors cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
               <GripVertical className="w-5 h-5" />
