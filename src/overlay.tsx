@@ -107,7 +107,7 @@ const OverlayApp = () => {
                         </div>
 
 
-                        <div className="flex flex-col  w-[400px] cursor-pointer" onClick={toggleShortcuts}>
+                        <div className="flex flex-col  w-[300px] cursor-pointer" onClick={toggleShortcuts}>
                             <div className="flex items-center gap-1">
                                 <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
                                 <span className="text-gray-400 text-md shrink-0">Record a session</span>
