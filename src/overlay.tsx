@@ -92,7 +92,7 @@ const OverlayApp = () => {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-start p-2">
-      <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}>
+      <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#C9B4BB] overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}>
         
         {/* Header Section */}
         <div className="flex items-center justify-between px-4 py-3 h-[68px] shrink-0">
