@@ -140,10 +140,12 @@ const OverlayApp = () => {
                                   {phrases[activePhraseIndex]}
                                 </span>
                             </div>
-                            <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
-                        </div>
-                        <div className={`transition-transform duration-300 ${view === 'expanded' ? 'rotate-180' : ''}`}>
-                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                            <div className="flex items-end gap-1">
+                              <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
+                              <div className={`transition-transform duration-300 ${view === 'expanded' ? 'rotate-180' : ''}`}>
+                                <ChevronDown className="w-3 h-3 text-gray-400" />
+                              </div>
+                            </div>
                         </div>
                     </div>
 
