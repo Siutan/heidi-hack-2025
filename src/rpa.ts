@@ -79,9 +79,11 @@ Doctor: Yes - the nitroglycerin as needed for chest pain, metoprolol 50 milligra
 Patient: Alright, I can do that.`;
 };
 
-export const performAutomation = async (conversation: string, sourceId?: string): Promise<void> => {
+export const performAutomation = async (conversation: string, sourceId?: string, onUpdate?: (data: any) => void): Promise<void> => {
   console.log("Starting automation with conversation length:", conversation?.length);
   
+  if (onUpdate) onUpdate({ status: 'Preparing...', details: 'Focusing target window...' });
+
   // Give user time to focus the window
   await new Promise(resolve => setTimeout(resolve, 3000));
   
@@ -89,7 +91,7 @@ export const performAutomation = async (conversation: string, sourceId?: string)
 
   try {
     const rpa = new GeminiVisionRPA();
-    await rpa.execute(conversation, sourceId);
+    await rpa.execute(conversation, sourceId, onUpdate);
   } catch (e: any) {
     console.error("Automation failed:", e);
     throw e; // Re-throw to be caught by main process handler

@@ -16,6 +16,7 @@ const OverlayApp = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [sources, setSources] = useState<Source[]>([]);
+  const [automationStatus, setAutomationStatus] = useState<{ status: string; step?: number; totalSteps?: number; details?: string } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -83,15 +84,12 @@ const OverlayApp = () => {
       await (window as any).electron.fillTemplate(transcript, sourceId);
     } catch (e: any) {
       console.error(e);
-      // The main process shows a dialog, but we can also show a toast or alert here if needed
-      // For now, just reset view
       alert("Automation failed. Please check the error dialog.");
     }
     setView('idle');
   };
 
   useEffect(() => {
-    // Resize window based on view
     let height = 300;
     if (view === 'expanded') height = 600;
     if (view === 'selecting-source') height = 600;
@@ -101,15 +99,24 @@ const OverlayApp = () => {
     }
   }, [view]);
 
+  useEffect(() => {
+    if (window.electron && window.electron.onAutomationUpdate) {
+      window.electron.onAutomationUpdate((_event, data) => {
+        console.log("Automation update:", data);
+        setAutomationStatus(data);
+      });
+    }
+  }, []);
+
   return (
-    <div className="w-full h-full flex flex-col items-center justify-start p-2">
+    <div className="w-full h-[20vh] flex flex-col items-center justify-start p-2">
       <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#C9B4BB] overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}>
         
         {/* Header Section */}
         <div className="flex items-center justify-between px-2 py-2 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
-              <img src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
+              <img onClick={toggleShortcuts} src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
             </div>
             
             {view === 'response' ? (
@@ -117,9 +124,21 @@ const OverlayApp = () => {
                 <span className="font-bold text-lg text-gray-900">From Dee</span>
               </div>
             ) : view === 'automating' ? (
-              <div className="flex flex-col">
-                <span className="font-bold text-lg text-gray-900">Automating...</span>
-                <span className="text-xs text-gray-500">Please wait...</span>
+              <div className="flex flex-col w-full pr-4">
+                <span className="font-bold text-lg text-gray-900">
+                  {automationStatus?.status || 'Automating...'}
+                </span>
+                <span className="text-xs text-gray-500 truncate">
+                  {automationStatus?.details || 'Please wait...'}
+                </span>
+                {automationStatus?.step && automationStatus?.totalSteps && (
+                   <div className="w-full bAngina Evaluation and Medication Adjustmentg-gray-200 rounded-full h-1.5 mt-1.5">
+                      <div 
+                        className="bg-rose-500 h-1.5 rounded-full transition-all duration-300" 
+                        style={{ width: `${(automationStatus.step / automationStatus.totalSteps) * 100}%` }}
+                      ></div>
+                   </div>
+                )}
               </div>
             ) : view === 'selecting-source' ? (
               <div className="flex flex-col">
@@ -132,10 +151,10 @@ const OverlayApp = () => {
                 <button onClick={toggleShortcuts}>EMR automation</button>
               </div>
             ) : (
-              <div className="flex flex-col cursor-pointer" onClick={startRecording}>
+              <div className="flex flex-col cursor-pointer">
                 <div className="flex items-center gap-1">
                   <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
-                  <span className="text-gray-400 text-md shrink-0">Record a session</span>
+                  <span className="text-gray-400 text-md shrink-0" onClick={startRecording}>Record a session</span>
                 </div>
                 <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
               </div>
@@ -152,7 +171,7 @@ const OverlayApp = () => {
 
         {/* Expanded Content (Shortcuts) - Dropdown Style */}
         {view === 'expanded' && (
-          <div className="px-2 pb-2 pt-0 animate-in slide-in-from-top-2 duration-200 bg-gray-50/50">
+          <div className="px-2 pb-2 pt-0 animate-in slide-in-from-top-2 duration-200 overflow-y-auto bg-gray-50/50">
             <div className="h-px w-full bg-gray-200 mb-2"></div>
             <div className="space-y-1">
               {['Record a session', 'Update a medical record', 'Get previous session notes', 'Fill EMR Template'].map((shortcut) => (

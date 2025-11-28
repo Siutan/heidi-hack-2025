@@ -1,6 +1,7 @@
 import { keyboard, mouse, Point, Button, Key } from '@computer-use/nut-js';
 import { desktopCapturer, screen, clipboard } from 'electron';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { exec } from 'child_process';
 
 import { RPAError, ElementNotFoundError, NoActionsGeneratedError, ScreenCaptureError } from './errors';
 
@@ -102,16 +103,73 @@ export class GeminiVisionRPA {
     }
   }
 
-  async execute(conversation: string, sourceId?: string) {
+  async execute(conversation: string, sourceId?: string, onUpdate?: (data: any) => void) {
+    if (onUpdate) onUpdate({ status: 'Capturing Screen', details: 'Taking a screenshot of the EMR...' });
     console.log("Capturing screen...");
+    
+    // Attempt to focus window if sourceId is provided
+    if (sourceId) {
+        try {
+            const sources = await desktopCapturer.getSources({ types: ['window'] });
+            const targetSource = sources.find(s => s.id === sourceId);
+            if (targetSource) {
+                 if (onUpdate) onUpdate({ status: 'Focusing Window', details: `Switching to ${targetSource.name}...` });
+                 console.log(`Attempting to focus window: ${targetSource.name}`);
+                 
+                 // Use AppleScript to focus the window by name
+                 // Note: This assumes the window name is unique enough or belongs to an app we can activate
+                 // desktopCapturer names are often "WindowTitle" or "AppName" or "WindowTitle - AppName"
+                 
+                 // Try to activate the application that owns the window. 
+                 // This is tricky without knowing the exact app name.
+                 // But often the window title IS the app name for main windows, or contains it.
+                 
+                 // A safer bet for macOS is to iterate through processes, but that's complex.
+                 // Let's try a simple "activate application" if the name looks like an app, 
+                 // or use System Events to click the window.
+                 
+                 // For now, let's try to just activate the application if we can guess it.
+                 // Actually, nut.js might have failed because I imported it wrong.
+                 // But let's stick to a simple AppleScript that tries to bring the process to front.
+                 
+                 // We will try to find the process with a window title matching the source name.
+                 const script = `
+                    tell application "System Events"
+                        set procs to processes
+                        repeat with proc in procs
+                            try
+                                if exists (window 1 of proc) then
+                                    if name of window 1 of proc contains "${targetSource.name}" then
+                                        set frontmost of proc to true
+                                        exit repeat
+                                    end if
+                                end if
+                            end try
+                        end repeat
+                    end tell
+                 `;
+                 
+                 exec(`osascript -e '${script}'`, (error) => {
+                     if (error) console.error("AppleScript error:", error);
+                 });
+                 
+                 await new Promise(r => setTimeout(r, 1000)); // Wait for focus
+            }
+        } catch (e) {
+            console.error("Failed to focus window:", e);
+        }
+    }
+
     const { buffer, width, height } = await this.captureScreen(sourceId);
     
+    if (onUpdate) onUpdate({ status: 'Analyzing', details: 'Gemini is reading the screen...' });
     console.log("Analyzing screen and conversation with Gemini...");
     const actions = await this.generateActions(conversation, buffer);
     console.log("actions", actions)
     
     if (actions.length === 0) {
       console.log("No actions generated.");
+      if (onUpdate) onUpdate({ status: 'Done', details: 'No actions needed.' });
       throw new NoActionsGeneratedError();
     }
 
@@ -119,11 +177,17 @@ export class GeminiVisionRPA {
     
     const errors: RPAError[] = [];
 
-    for (const action of actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      if (onUpdate) onUpdate({ 
+          status: 'Executing', 
+          details: `Filling ${action.fieldLabel}...`, 
+          step: i + 1, 
+          totalSteps: actions.length 
+      });
       console.log(`Action: Filling '${action.fieldLabel}' with '${action.value}' at coordinates ${action.coordinates}`);
       
       try {
-        // Convert normalized coordinates to pixels
         // Gemini returns [y, x] in 0-1000 scale
         const targetX = (action.coordinates[1] / 1000) * width;
         const targetY = (action.coordinates[0] / 1000) * height;
@@ -138,17 +202,13 @@ export class GeminiVisionRPA {
         // Wait for focus
         await new Promise(r => setTimeout(r, 500));
         
-        // Type value
-        // await keyboard.type(action.value);
-        
         // Use Copy & Paste instead
         clipboard.writeText(action.value);
         await new Promise(r => setTimeout(r, 200)); // Wait for clipboard update
 
         console.log("Pressing keys for paste:", Key.LeftSuper, Key.V);
 
-        // Cmd+V (Mac)
-        // Try pressing both at once
+
         await keyboard.pressKey(Key.LeftSuper, Key.V);
         await keyboard.releaseKey(Key.LeftSuper, Key.V);
         
@@ -169,5 +229,6 @@ export class GeminiVisionRPA {
     }
     
     console.log("Automation complete.");
+    if (onUpdate) onUpdate({ status: 'Complete', details: 'All fields filled successfully.', step: actions.length, totalSteps: actions.length });
   }
 }
