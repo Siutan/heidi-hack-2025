@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Command, ChevronDown, ChevronUp, Activity } from 'lucide-react';
+import { Command, ChevronDown, ChevronUp, Activity, GripVertical } from 'lucide-react';
 import './overlay.css';
 
 type ViewState = 'idle' | 'expanded' | 'recording' | 'response';
@@ -93,24 +93,31 @@ const OverlayApp = () => {
             )}
           </div>
 
-          {view === 'recording' ? (
-             <div className="flex items-center gap-1 h-8">
-               {/* Fake waveform animation */}
-               {[...Array(8)].map((_, i) => (
-                 <div key={i} className="w-1 bg-rose-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }}></div>
-               ))}
-             </div>
-          ) : view === 'response' ? (
-            <div className="text-xs text-gray-500 cursor-pointer hover:text-gray-700" onClick={reset}>Close</div>
-          ) : (
-            <button 
-              onClick={toggleShortcuts}
-              className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              View Shortcuts
-              {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {view === 'recording' ? (
+               <div className="flex items-center gap-1 h-8">
+                 {/* Fake waveform animation */}
+                 {[...Array(8)].map((_, i) => (
+                   <div key={i} className="w-1 bg-rose-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }}></div>
+                 ))}
+               </div>
+            ) : view === 'response' ? (
+              <div className="text-xs text-gray-500 cursor-pointer hover:text-gray-700" onClick={reset}>Close</div>
+            ) : (
+              <button 
+                onClick={toggleShortcuts}
+                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                View Shortcuts
+                {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            )}
+            
+            {/* Drag Handle */}
+            <div className="drag-handle p-1 hover:bg-gray-100 rounded-md transition-colors cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
+              <GripVertical className="w-5 h-5" />
+            </div>
+          </div>
         </div>
 
         {/* Expanded Content (Shortcuts) */}
