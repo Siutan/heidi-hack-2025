@@ -48,7 +48,7 @@ export class GoogleSpeechService extends EventEmitter {
 
   async initialize(): Promise<void> {
     try {
-      const apiKey = process.env.GOOGLE_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
 
       console.log("[GoogleSpeech] Initializing...");
       console.log(

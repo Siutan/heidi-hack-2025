@@ -37,9 +37,9 @@ console.log("[Main] ========================================");
 console.log("[Main] CWD:", process.cwd());
 console.log("[Main] __dirname:", __dirname);
 console.log(
-  "[Main] GOOGLE_API_KEY:",
-  process.env.GOOGLE_API_KEY
-    ? `SET (${process.env.GOOGLE_API_KEY.substring(0, 10)}...)`
+  "[Main] GEMINI_API_KEY:",
+  process.env.GEMINI_API_KEY
+    ? `SET (${process.env.GEMINI_API_KEY.substring(0, 10)}...)`
     : "NOT SET ⚠️"
 );
 
@@ -202,8 +202,8 @@ async function initializeWakeWordService() {
     console.log("[Main] Initializing Wake Word Service");
     console.log("[Main] ========================================");
     console.log(
-      "[Main] GOOGLE_API_KEY:",
-      process.env.GOOGLE_API_KEY ? "SET" : "NOT SET"
+      "[Main] GEMINI_API_KEY:",
+      process.env.GEMINI_API_KEY ? "SET" : "NOT SET"
     );
 
     const service = getWakeWordService();
@@ -232,7 +232,9 @@ async function initializeWakeWordService() {
     service.on("geminiAudio", (data) => {
       console.log("[Main] 🔊 Gemini audio received");
       // Convert Buffer to base64 for IPC
-      broadcastToRenderers("gemini-audio", { audio: data.audio.toString("base64") });
+      broadcastToRenderers("gemini-audio", {
+        audio: data.audio.toString("base64"),
+      });
     });
 
     service.on("error", (error) => {

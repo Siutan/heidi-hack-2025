@@ -1,12 +1,17 @@
 /**
  * Gemini Live API Service
  * Handles real-time voice conversation using Gemini's Live API
- * 
+ *
  * Docs: https://ai.google.dev/gemini-api/docs/live
  */
 
 import { EventEmitter } from "events";
-import { GoogleGenAI, Modality, Session, LiveServerMessage } from "@google/genai";
+import {
+  GoogleGenAI,
+  Modality,
+  Session,
+  LiveServerMessage,
+} from "@google/genai";
 
 export interface GeminiLiveConfig {
   model: string;
@@ -36,13 +41,17 @@ export class GeminiLiveService extends EventEmitter {
   }
 
   async initialize(): Promise<void> {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+
     console.log("[GeminiLive] Initializing...");
-    console.log(`[GeminiLive] API Key present: ${apiKey ? "YES (" + apiKey.substring(0, 8) + "...)" : "NO"}`);
+    console.log(
+      `[GeminiLive] API Key present: ${apiKey ? "YES (" + apiKey.substring(0, 8) + "...)" : "NO"}`
+    );
 
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required");
+      throw new Error(
+        "GEMINI_API_KEY or GEMINI_API_KEY environment variable is required"
+      );
     }
 
     this.ai = new GoogleGenAI({ apiKey });
@@ -54,7 +63,9 @@ export class GeminiLiveService extends EventEmitter {
    */
   async startSession(): Promise<void> {
     if (!this.ai) {
-      throw new Error("GeminiLiveService not initialized. Call initialize() first.");
+      throw new Error(
+        "GeminiLiveService not initialized. Call initialize() first."
+      );
     }
 
     if (this.session) {
@@ -118,7 +129,7 @@ export class GeminiLiveService extends EventEmitter {
     try {
       // Convert Buffer to base64
       const base64Audio = audioChunk.toString("base64");
-      
+
       this.session.sendRealtimeInput({
         audio: {
           data: base64Audio,
@@ -156,7 +167,7 @@ export class GeminiLiveService extends EventEmitter {
     // Handle different message types
     if (message.serverContent) {
       const content = message.serverContent;
-      
+
       // Check for text response
       if (content.modelTurn?.parts) {
         for (const part of content.modelTurn.parts) {
@@ -222,4 +233,3 @@ export function destroyGeminiLiveService(): void {
     instance = null;
   }
 }
-
