@@ -51,11 +51,12 @@ export class GeminiVisionRPA {
     }
   }
 
-  async generateActions(conversation: string, imageBuffer: Buffer): Promise<RPAAction[]> {
+  async generateActions(conversation: string, imageBuffer: Buffer, screenWidth?: number, screenHeight?: number): Promise<RPAAction[]> {
     const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
       You are an expert Robotic Process Automation agent for medical software.
+      ${screenWidth && screenHeight ? `The screen resolution is ${screenWidth}x${screenHeight}.` : ''}
       
       Task:
       1. Analyze the provided screenshot of a medical software interface.
@@ -74,7 +75,9 @@ export class GeminiVisionRPA {
       - "explanation": Brief reason for this action.
       
       Important:
-      - Only include fields that are visible and relevant.
+      - **ACCURACY IS CRITICAL**: You must return the coordinates of the **CENTER of the input text box**, NOT the label.
+      - Look for the rectangular box or underline where text is entered.
+      - Do not click on the field label text itself. Click inside the empty input area.
       - If a field requires a complex interaction (dropdown), try to type the value that would select it, or skip it.
       - Ensure coordinates point to the empty space where I should click to type.
       - Do not include markdown formatting.
@@ -116,23 +119,6 @@ export class GeminiVisionRPA {
                  if (onUpdate) onUpdate({ status: 'Focusing Window', details: `Switching to ${targetSource.name}...` });
                  console.log(`Attempting to focus window: ${targetSource.name}`);
                  
-                 // Use AppleScript to focus the window by name
-                 // Note: This assumes the window name is unique enough or belongs to an app we can activate
-                 // desktopCapturer names are often "WindowTitle" or "AppName" or "WindowTitle - AppName"
-                 
-                 // Try to activate the application that owns the window. 
-                 // This is tricky without knowing the exact app name.
-                 // But often the window title IS the app name for main windows, or contains it.
-                 
-                 // A safer bet for macOS is to iterate through processes, but that's complex.
-                 // Let's try a simple "activate application" if the name looks like an app, 
-                 // or use System Events to click the window.
-                 
-                 // For now, let's try to just activate the application if we can guess it.
-                 // Actually, nut.js might have failed because I imported it wrong.
-                 // But let's stick to a simple AppleScript that tries to bring the process to front.
-                 
-                 // We will try to find the process with a window title matching the source name.
                  const script = `
                     tell application "System Events"
                         set procs to processes
@@ -160,75 +146,89 @@ export class GeminiVisionRPA {
         }
     }
 
-    const { buffer, width, height } = await this.captureScreen(sourceId);
-    
-    if (onUpdate) onUpdate({ status: 'Analyzing', details: 'Gemini is reading the screen...' });
-    console.log("Analyzing screen and conversation with Gemini...");
-    const actions = await this.generateActions(conversation, buffer);
-    console.log("actions", actions)
-    
-    if (actions.length === 0) {
-      console.log("No actions generated.");
-      if (onUpdate) onUpdate({ status: 'Done', details: 'No actions needed.' });
-      throw new NoActionsGeneratedError();
-    }
+    let iteration = 0;
+    const MAX_ITERATIONS = 5;
 
-    console.log(`Executing ${actions.length} actions...`);
-    
-    const errors: RPAError[] = [];
+    while (iteration < MAX_ITERATIONS) {
+        iteration++;
+        console.log(`Starting iteration ${iteration}`);
 
-    for (let i = 0; i < actions.length; i++) {
-      const action = actions[i];
-      if (onUpdate) onUpdate({ 
-          status: 'Executing', 
-          details: `Filling ${action.fieldLabel}...`, 
-          step: i + 1, 
-          totalSteps: actions.length 
-      });
-      console.log(`Action: Filling '${action.fieldLabel}' with '${action.value}' at coordinates ${action.coordinates}`);
-      
-      try {
-        // Gemini returns [y, x] in 0-1000 scale
-        const targetX = (action.coordinates[1] / 1000) * width;
-        const targetY = (action.coordinates[0] / 1000) * height;
-
-        console.log(`Clicking at (${targetX}, ${targetY})`);
-
-        // Move and Click
-        await mouse.setPosition(new Point(targetX, targetY));
-        await new Promise(r => setTimeout(r, 200)); // Hover effect
-        await mouse.click(Button.LEFT);
+        const { buffer, width, height } = await this.captureScreen(sourceId);
         
-        // Wait for focus
-        await new Promise(r => setTimeout(r, 500));
+        if (onUpdate) onUpdate({ status: 'Analyzing', details: `Dee is reading the screen (Attempt ${iteration})...` });
+        console.log("Analyzing screen and conversation with Dee...");
+        const actions = await this.generateActions(conversation, buffer, width, height);
+        console.log("actions", actions)
         
-        // Use Copy & Paste instead
-        clipboard.writeText(action.value);
-        await new Promise(r => setTimeout(r, 200)); // Wait for clipboard update
-
-        console.log("Pressing keys for paste:", Key.LeftSuper, Key.V);
-
-
-        await keyboard.pressKey(Key.LeftSuper, Key.V);
-        await keyboard.releaseKey(Key.LeftSuper, Key.V);
-        
-        // Wait before next action
-        await new Promise(r => setTimeout(r, 1000));
-        
-      } catch (e: any) {
-        console.error(`Failed to execute action for label '${action.fieldLabel}':`, e);
-        errors.push(new ElementNotFoundError(action.fieldLabel));
-      }
-    }
-    
-    if (errors.length > 0) {
-        console.warn(`Completed with ${errors.length} errors.`);
-        if (errors.length === actions.length) {
-             throw new Error("Failed to execute ALL actions. Please check if the correct screen is visible.");
+        if (actions.length === 0) {
+          console.log("No actions generated.");
+          if (iteration === 1) {
+              if (onUpdate) onUpdate({ status: 'Done', details: 'No actions needed.' });
+              throw new NoActionsGeneratedError();
+          }
+          break;
         }
+
+        console.log(`Executing ${actions.length} actions...`);
+        
+        const errors: RPAError[] = [];
+
+        for (let i = 0; i < actions.length; i++) {
+          const action = actions[i];
+          if (onUpdate) onUpdate({ 
+              status: 'Executing', 
+              details: `Filling ${action.fieldLabel}...`, 
+              step: i + 1, 
+              totalSteps: actions.length 
+          });
+          console.log(`Action: Filling '${action.fieldLabel}' with '${action.value}' at coordinates ${action.coordinates}`);
+          
+          try {
+            // Gemini returns [y, x] in 0-1000 scale
+            const targetX = (action.coordinates[1] / 1000) * width;
+            const targetY = (action.coordinates[0] / 1000) * height;
+
+            console.log(`Clicking at (${targetX}, ${targetY})`);
+
+            // Move and Click
+            await mouse.setPosition(new Point(targetX, targetY));
+            await new Promise(r => setTimeout(r, 200)); // Hover effect
+            await mouse.click(Button.LEFT);
+            
+            // Wait for focus
+            await new Promise(r => setTimeout(r, 500));
+            
+            // Use Copy & Paste instead
+            clipboard.writeText(action.value);
+            await new Promise(r => setTimeout(r, 200)); // Wait for clipboard update
+
+            console.log("Pressing keys for paste:", Key.LeftSuper, Key.V);
+
+
+            await keyboard.pressKey(Key.LeftSuper, Key.V);
+            await keyboard.releaseKey(Key.LeftSuper, Key.V);
+            
+            // Wait before next action
+            await new Promise(r => setTimeout(r, 1000));
+            
+          } catch (e: any) {
+            console.error(`Failed to execute action for label '${action.fieldLabel}':`, e);
+            errors.push(new ElementNotFoundError(action.fieldLabel));
+          }
+        }
+        
+        if (errors.length > 0) {
+            console.warn(`Iteration ${iteration} completed with ${errors.length} errors.`);
+            if (errors.length === actions.length && iteration === 1) {
+                 throw new Error("Failed to execute ALL actions. Please check if the correct screen is visible.");
+            }
+        }
+
+        // Wait for UI to settle before next screenshot
+        await new Promise(r => setTimeout(r, 2000));
     }
     
     console.log("Automation complete.");
-    if (onUpdate) onUpdate({ status: 'Complete', details: 'All fields filled successfully.', step: actions.length, totalSteps: actions.length });
+    if (onUpdate) onUpdate({ status: 'Complete', details: 'All fields filled successfully.' });
   }
 }

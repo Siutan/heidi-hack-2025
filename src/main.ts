@@ -61,7 +61,7 @@ const createOverlayWindow = () => {
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 800,
-    height: 200,
+    height: 600,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },

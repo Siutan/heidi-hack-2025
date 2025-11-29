@@ -90,7 +90,7 @@ const OverlayApp = () => {
   };
 
   useEffect(() => {
-    let height = 300;
+    let height = 600;
     if (view === 'expanded') height = 600;
     if (view === 'selecting-source') height = 600;
     
@@ -109,7 +109,7 @@ const OverlayApp = () => {
   }, []);
 
   return (
-    <div className="w-full h-[20vh] flex flex-col items-center justify-start p-2">
+    <div className="w-full h-full flex flex-col items-center justify-start p-2">
       <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#C9B4BB] overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}>
         
         {/* Header Section */}
