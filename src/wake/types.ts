@@ -65,7 +65,7 @@ export const DEFAULT_CONFIG: WakeWordServiceConfig = {
     'hi di',
     'hey di',
   ],
-  wakeWordThreshold: 0.35,
+  wakeWordThreshold:0.55,
   commandTimeout: 10000,  // 10 seconds max for command
   silenceTimeout: 2000,   // 2 seconds of silence ends command
   languageCode: 'en-US',
