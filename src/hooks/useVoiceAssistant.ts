@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ExecContext } from '../voice/types';
 
 // Match the WakeWordStatus from types.d.ts
-type VoiceStatus = 'idle' | 'listening' | 'wake_detected' | 'processing' | 'error';
+type VoiceStatus = 'idle' | 'listening' | 'wake_detected' | 'command_window' | 'processing' | 'error';
 
 export function useVoiceAssistant(context: ExecContext) {
   const [isListening, setIsListening] = useState(false);
@@ -10,7 +10,7 @@ export function useVoiceAssistant(context: ExecContext) {
   const [geminiResponse, setGeminiResponse] = useState('');
   const [status, setStatus] = useState<VoiceStatus>('idle');
   const [error, setError] = useState<string | null>(null);
-  
+
   // Audio context for playing Gemini audio responses
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -20,35 +20,35 @@ export function useVoiceAssistant(context: ExecContext) {
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContext({ sampleRate: 24000 });
       }
-      
+
       const audioContext = audioContextRef.current;
-      
+
       // Decode base64 to ArrayBuffer
       const binaryString = atob(base64Audio);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      
+
       // Convert to Int16Array (16-bit PCM)
       const int16Array = new Int16Array(bytes.buffer);
-      
+
       // Convert to Float32Array for Web Audio API
       const float32Array = new Float32Array(int16Array.length);
       for (let i = 0; i < int16Array.length; i++) {
         float32Array[i] = int16Array[i] / 32768;
       }
-      
+
       // Create audio buffer
       const audioBuffer = audioContext.createBuffer(1, float32Array.length, 24000);
       audioBuffer.getChannelData(0).set(float32Array);
-      
+
       // Play the audio
       const source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioContext.destination);
       source.start();
-      
+
       console.log('[useVoiceAssistant] Playing audio response');
     } catch (err) {
       console.error('[useVoiceAssistant] Error playing audio:', err);
@@ -68,7 +68,7 @@ export function useVoiceAssistant(context: ExecContext) {
     const unsubStatus = wakeWord.onStatusChange((newStatus) => {
       console.log('Wake word status:', newStatus);
       setStatus(newStatus as VoiceStatus);
-      
+
       if (newStatus === 'idle') {
         // Clear transcript after a delay when returning to idle
         setTimeout(() => {
@@ -116,7 +116,7 @@ export function useVoiceAssistant(context: ExecContext) {
       unsubGeminiResponse();
       unsubGeminiAudio();
       unsubError();
-      
+
       // Close audio context
       if (audioContextRef.current) {
         audioContextRef.current.close();
@@ -128,7 +128,7 @@ export function useVoiceAssistant(context: ExecContext) {
   // Start listening
   const startListening = useCallback(async () => {
     console.log('[useVoiceAssistant] startListening called');
-    
+
     if (!window.electron?.wakeWord) {
       console.error('[useVoiceAssistant] Wake word API not available!');
       console.log('[useVoiceAssistant] window.electron:', window.electron);
@@ -140,7 +140,7 @@ export function useVoiceAssistant(context: ExecContext) {
       console.log('[useVoiceAssistant] Requesting mic permission...');
       const granted = await window.electron.requestMicPermission();
       console.log('[useVoiceAssistant] Mic permission:', granted ? 'granted' : 'denied');
-      
+
       if (!granted) {
         setError('Microphone permission denied');
         setStatus('error');

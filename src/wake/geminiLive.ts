@@ -11,19 +11,47 @@ import {
   Modality,
   Session,
   LiveServerMessage,
+  FunctionDeclaration,
 } from "@google/genai";
+
+export interface ToolCall {
+  name: string;
+  args: Record<string, any>;
+}
 
 export interface GeminiLiveConfig {
   model: string;
   systemInstruction: string;
 }
 
+// Tool definitions for Gemini function calling
+const TOOL_DECLARATIONS: FunctionDeclaration[] = [
+  {
+    name: "start_recording",
+    description: "Start recording a patient session or clinical note. Use this when the user wants to begin a recording session.",
+  },
+  {
+    name: "stop_recording",
+    description: "Stop the current recording session. Use this when the user wants to end or finish the recording.",
+  },
+  {
+    name: "emr_assistance",
+    description: "Provide assistance with EMR (Electronic Medical Records), patient records, medical documentation, or any healthcare-related queries. Use this for questions about patient information, medical history, or record management.",
+  },
+];
+
 export const DEFAULT_GEMINI_LIVE_CONFIG: GeminiLiveConfig = {
-  model: "gemini-2.5-flash-preview-native-audio-dialog",
+  model: "gemini-2.5-flash-native-audio-preview-09-2025",
   systemInstruction: `You are Heidi (or "Hi Dee"), a friendly and helpful voice assistant for healthcare professionals. 
 You help with recording patient sessions, taking notes, and answering questions.
+
+You have access to three tools:
+- start_recording: Use this when the user wants to start recording a session
+- stop_recording: Use this when the user wants to stop or end recording
+- emr_assistance: Use this for questions about patient records, EMR, or medical documentation
+
+Listen carefully to what the user says after "Hi Dee" and select the appropriate tool.
 Keep responses concise and natural for voice interaction.
-When the user asks to record a session, acknowledge it and let them know you're ready.
 Be warm, professional, and helpful.`,
 };
 
@@ -78,12 +106,23 @@ export class GeminiLiveService extends EventEmitter {
       console.log("[GeminiLive] Starting live session...");
       console.log(`[GeminiLive] Model: ${this.config.model}`);
 
-      this.session = await this.ai.live.connect({
+      // Build configuration for debugging
+      // Testing with minimal config to isolate the invalid argument error
+      const sessionConfig = {
         model: this.config.model,
         config: {
-          responseModalities: [Modality.AUDIO, Modality.TEXT],
-          systemInstruction: this.config.systemInstruction,
+          responseModalities: [Modality.AUDIO],
+          systemInstruction: this.config.systemInstruction,  // Testing if this causes the error
+          tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
         },
+      };
+
+      // Log the full configuration for debugging
+      console.log("[GeminiLive] 📋 Session configuration:");
+      console.log(JSON.stringify(sessionConfig, null, 2));
+
+      this.session = await this.ai.live.connect({
+        ...sessionConfig,
         callbacks: {
           onopen: () => {
             console.log("[GeminiLive] ✓ Session connected");
@@ -91,14 +130,18 @@ export class GeminiLiveService extends EventEmitter {
             this.emit("connected");
           },
           onmessage: (message: LiveServerMessage) => {
+            console.log(message);
             this.handleMessage(message);
           },
           onerror: (error: ErrorEvent) => {
             console.error("[GeminiLive] ✗ Session error:", error.message);
+            console.error("[GeminiLive] Full error:", error);
             this.emit("error", new Error(error.message));
           },
           onclose: (event: CloseEvent) => {
             console.log("[GeminiLive] Session closed:", event.reason);
+            console.log("[GeminiLive] Close code:", event.code);
+            console.log("[GeminiLive] Was clean:", event.wasClean);
             this.isConnected = false;
             this.session = null;
             this.emit("disconnected");
@@ -108,7 +151,13 @@ export class GeminiLiveService extends EventEmitter {
 
       console.log("[GeminiLive] ✓ Session started");
     } catch (error) {
-      console.error("[GeminiLive] ✗ Failed to start session:", error);
+      console.error("[GeminiLive] ✗ Failed to start session:");
+      console.error("[GeminiLive] Error type:", typeof error);
+      console.error("[GeminiLive] Error:", error);
+      if (error instanceof Error) {
+        console.error("[GeminiLive] Error message:", error.message);
+        console.error("[GeminiLive] Error stack:", error.stack);
+      }
       throw error;
     }
   }
@@ -167,13 +216,25 @@ export class GeminiLiveService extends EventEmitter {
     // Handle different message types
     if (message.serverContent) {
       const content = message.serverContent;
+      console.log("[GeminiLive] 📨 Server content:", JSON.stringify(content, null, 2));
 
-      // Check for text response
+      // Check for tool calls (function calling)
       if (content.modelTurn?.parts) {
         for (const part of content.modelTurn.parts) {
+          // Handle text response
           if (part.text) {
             console.log(`[GeminiLive] 📝 Text response: "${part.text}"`);
             this.emit("textResponse", part.text);
+          }
+
+          // Handle tool/function calls
+          if (part.functionCall && part.functionCall.name) {
+            const toolCall: ToolCall = {
+              name: part.functionCall.name,
+              args: part.functionCall.args || {},
+            };
+            console.log(`[GeminiLive] 🔧 Tool call: ${toolCall.name}`, toolCall.args);
+            this.emit("toolCall", toolCall);
           }
         }
       }
