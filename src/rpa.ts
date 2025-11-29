@@ -91,7 +91,7 @@ export const performAutomation = async (conversation: string, sourceId?: string,
 
   try {
     const rpa = new GeminiVisionRPA();
-    await rpa.execute(conversation, sourceId, onUpdate);
+    await rpa.execute(generateMockData(), sourceId, onUpdate);
   } catch (e: any) {
     console.error("Automation failed:", e);
     throw e; // Re-throw to be caught by main process handler

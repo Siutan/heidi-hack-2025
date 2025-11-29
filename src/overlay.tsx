@@ -216,25 +216,7 @@ const OverlayApp = () => {
   useEffect(() => {
     // Resize window based on view
     const height = view === "expanded" ? 600 : 300; // Approximate heights
-    // We need to get the current width to maintain it, or just pass the current width if we know it.
-    // Since we are full width, we might need to be careful.
-    // Actually, setSize takes (width, height).
-    // If we want to keep the width dynamic, we should probably ask the main process to only change height,
-    // or pass the current outer width.
-    // For now, let's assume a fixed width for the content or try to get it.
-    // Better yet, let's send a message to resize only height or handle it in main.
-    // But the API we made is (width, height).
-    // Let's use document.body.scrollWidth or similar.
-
-    // Actually, the window width is set in main.ts based on screen size.
-    // If we send a fixed width here, it might resize the window to something wrong.
-    // Let's update the preload/main to accept just height or optional width.
-
-    // For now, let's just use a hardcoded width that matches the design or try to read it.
-    // But wait, the user asked for full width.
-    // If I pass a specific width, I might break the full width.
-
-    // Let's update the IPC to allow passing null for width to keep current width.
+    
     if (window.electron) {
       window.electron.resizeWindow(document.body.offsetWidth, height);
     }
@@ -326,17 +308,7 @@ const OverlayApp = () => {
               <div className="flex items-center overflow-hidden whitespace-nowrap max-w-[300px]">
                 {transcript ? (
                   <span className="text-lg text-gray-900 shrink-0">
-                    {transcript
-                      .split(/(\bhi dee\b|\bheidi\b)/i)
-                      .map((part, i) =>
-                        /(\bhi dee\b|\bheidi\b)/i.test(part) ? (
-                          <span key={i} className="font-bold text-rose-500">
-                            {part}
-                          </span>
-                        ) : (
-                          <span key={i}>{part}</span>
-                        )
-                      )}
+                    Listening...
                   </span>
                 ) : (
                   <span className="font-bold text-lg text-gray-900 shrink-0">

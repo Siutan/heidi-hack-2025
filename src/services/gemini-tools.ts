@@ -5,7 +5,7 @@ import { generateMockData, performAutomation } from "../rpa";
 
 export async function fillTemplate(sender: Electron.WebContents, conversation?: string, sourceId?: string) {
     try {
-        const textToProcess = conversation || generateMockData();
+        const textToProcess = generateMockData();
         await performAutomation(textToProcess, sourceId, (data) => {
           sender.send('automation-update', data);
         });
