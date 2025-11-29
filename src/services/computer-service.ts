@@ -8,6 +8,7 @@ import { exec } from "child_process";
 import screenshot from "screenshot-desktop";
 import sharp from "sharp";
 import { promisify } from "util";
+import { clipboard } from "electron";
 
 const execPromise = promisify(exec);
 
@@ -348,6 +349,28 @@ export namespace Computer {
       await executeCliClickCommand(`t:${formattedText}`);
       return `Typed text: "${text}"`;
     }, "Error typing text");
+  }
+
+  /**
+   * Paste text by copying to clipboard and simulating Cmd+V
+   * @param text - Text to paste
+   * @returns Promise that resolves with a success message
+   */
+  export async function paste(text: string): Promise<string> {
+    return executeWithErrorHandling(async () => {
+      // Copy text to clipboard
+      clipboard.writeText(text);
+      
+      // Small delay to ensure clipboard is updated
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      // Simulate Cmd+V (paste) on macOS
+      await executeCliClickCommand("kd:cmd");
+      await executeCliClickCommand("t:v");
+      await executeCliClickCommand("ku:cmd");
+      
+      return `Pasted text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`;
+    }, "Error pasting text");
   }
 
   /**

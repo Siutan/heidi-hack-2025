@@ -22,6 +22,7 @@ export default defineConfig({
         ...builtinModules.map((m) => `node:${m}`),
         // Native/complex Node modules that shouldn't be bundled
         "@google-cloud/speech",
+        "@google-cloud/text-to-speech",
         "electron",
         "node-record-lpcm16",
         "dotenv",
@@ -38,8 +39,8 @@ export default defineConfig({
         "@google/genai",
         "ai",
         "ws",
-        '@computer-use/nut-js',
-        'electron-squirrel-startup',
+        "@computer-use/nut-js",
+        "electron-squirrel-startup",
       ],
     },
   },

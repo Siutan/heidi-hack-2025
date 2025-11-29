@@ -253,14 +253,8 @@ async function initializeWakeWordService() {
       (data: { name: string; args: Record<string, unknown> }) => {
         console.log("[Main] 🔧 Tool call received:", data.name, data.args);
         broadcastToRenderers("tool-call", data);
-        if (data.name === "emr_assistance") {
-          console.log("[Main] Prompting user to select source for emr_assistance...");
-          service.stop(); // Stop the wake word service/Gemini Live session
-          broadcastToRenderers("rpa:prompt-select-source", {
-            conversation: data.args.conversation,
-            sourceId: data.args.sourceId
-          });
-        }
+        // EMR assistance is now handled directly in geminiCommand.ts
+        // by opening Careflow app and pasting clipboard content
       }
     );
 
