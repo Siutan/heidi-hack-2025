@@ -329,8 +329,10 @@ export namespace Computer {
    */
   export async function moveMouse(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`m:${x},${y}`);
-      return `Mouse moved to (${x}, ${y})`;
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+      await executeCliClickCommand(`m:${roundedX},${roundedY}`);
+      return `Mouse moved to (${roundedX}, ${roundedY})`;
     }, "Error moving mouse");
   }
 
@@ -360,15 +362,72 @@ export namespace Computer {
   }
 
   /**
-   * Click at the specified coordinates
+   * Click at the specified coordinates with smart retry logic
    * @param x - X coordinate
    * @param y - Y coordinate
+   * @param verify - Whether to verify the click and retry with position adjustments (default: true)
    * @returns Promise that resolves with a success message
    */
-  export async function clickAt(x: number, y: number): Promise<string> {
+  export async function clickAt(
+    x: number,
+    y: number,
+    verify = true
+  ): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`c:${x},${y}`);
-      return `Clicked at (${x}, ${y})`;
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+
+      if (!verify) {
+        await executeCliClickCommand(`c:${roundedX},${roundedY}`);
+        return `Clicked at (${roundedX}, ${roundedY})`;
+      }
+
+      // Try clicking with position adjustments if needed
+      const offsets = [
+        [0, 0], // Original position
+        [10, 0], // Right
+        [-10, 0], // Left
+        [0, 10], // Down
+        [0, -10], // Up
+        [10, 10], // Bottom-right
+        [-10, -10], // Top-left
+        [10, -10], // Top-right
+        [-10, 10], // Bottom-left
+      ];
+
+      let lastError: Error | null = null;
+
+      for (let i = 0; i < offsets.length; i++) {
+        const [offsetX, offsetY] = offsets[i];
+        const tryX = roundedX + offsetX;
+        const tryY = roundedY + offsetY;
+
+        try {
+          await executeCliClickCommand(`c:${tryX},${tryY}`);
+
+          // Small delay to let the UI respond
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // If this is not the first attempt, log that we repositioned
+          if (i > 0) {
+            console.log(
+              `[Computer] Click succeeded with offset (${offsetX}, ${offsetY}) at (${tryX}, ${tryY})`
+            );
+            return `Clicked at (${roundedX}, ${roundedY}) [adjusted to (${tryX}, ${tryY})]`;
+          }
+
+          return `Clicked at (${roundedX}, ${roundedY})`;
+        } catch (error) {
+          lastError = error as Error;
+          // Try next offset
+          continue;
+        }
+      }
+
+      // If all attempts failed, throw the last error
+      throw (
+        lastError || new Error(`Failed to click at (${roundedX}, ${roundedY})`)
+      );
     }, "Error clicking at coordinates");
   }
 
@@ -387,12 +446,64 @@ export namespace Computer {
    * Perform a right-click at the specified coordinates
    * @param x - X coordinate
    * @param y - Y coordinate
+   * @param verify - Whether to verify and retry with position adjustments (default: true)
    * @returns Promise that resolves with a success message
    */
-  export async function rightClickAt(x: number, y: number): Promise<string> {
+  export async function rightClickAt(
+    x: number,
+    y: number,
+    verify = true
+  ): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`rc:${x},${y}`);
-      return `Right-clicked at (${x}, ${y})`;
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+
+      if (!verify) {
+        await executeCliClickCommand(`dc:${roundedX},${roundedY}`);
+        return `Double-clicked at (${roundedX}, ${roundedY})`;
+      }
+
+      const offsets = [
+        [0, 0],
+        [10, 0],
+        [-10, 0],
+        [0, 10],
+        [0, -10],
+        [10, 10],
+        [-10, -10],
+        [10, -10],
+        [-10, 10],
+      ];
+
+      let lastError: Error | null = null;
+
+      for (let i = 0; i < offsets.length; i++) {
+        const [offsetX, offsetY] = offsets[i];
+        const tryX = roundedX + offsetX;
+        const tryY = roundedY + offsetY;
+
+        try {
+          await executeCliClickCommand(`rc:${tryX},${tryY}`);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          if (i > 0) {
+            console.log(
+              `[Computer] Right-click succeeded with offset (${offsetX}, ${offsetY})`
+            );
+            return `Right-clicked at (${roundedX}, ${roundedY}) [adjusted to (${tryX}, ${tryY})]`;
+          }
+
+          return `Right-clicked at (${roundedX}, ${roundedY})`;
+        } catch (error) {
+          lastError = error as Error;
+          continue;
+        }
+      }
+
+      throw (
+        lastError ||
+        new Error(`Failed to right-click at (${roundedX}, ${roundedY})`)
+      );
     }, "Error right-clicking at coordinates");
   }
 
@@ -411,12 +522,64 @@ export namespace Computer {
    * Double-click at the specified coordinates
    * @param x - X coordinate
    * @param y - Y coordinate
+   * @param verify - Whether to verify and retry with position adjustments (default: true)
    * @returns Promise that resolves with a success message
    */
-  export async function doubleClickAt(x: number, y: number): Promise<string> {
+  export async function doubleClickAt(
+    x: number,
+    y: number,
+    verify = true
+  ): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`dc:${x},${y}`);
-      return `Double-clicked at (${x}, ${y})`;
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+
+      if (!verify) {
+        await executeCliClickCommand(`dc:${roundedX},${roundedY}`);
+        return `Double-clicked at (${roundedX}, ${roundedY})`;
+      }
+
+      const offsets = [
+        [0, 0],
+        [10, 0],
+        [-10, 0],
+        [0, 10],
+        [0, -10],
+        [10, 10],
+        [-10, -10],
+        [10, -10],
+        [-10, 10],
+      ];
+
+      let lastError: Error | null = null;
+
+      for (let i = 0; i < offsets.length; i++) {
+        const [offsetX, offsetY] = offsets[i];
+        const tryX = roundedX + offsetX;
+        const tryY = roundedY + offsetY;
+
+        try {
+          await executeCliClickCommand(`dc:${tryX},${tryY}`);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          if (i > 0) {
+            console.log(
+              `[Computer] Double-click succeeded with offset (${offsetX}, ${offsetY})`
+            );
+            return `Double-clicked at (${roundedX}, ${roundedY}) [adjusted to (${tryX}, ${tryY})]`;
+          }
+
+          return `Double-clicked at (${roundedX}, ${roundedY})`;
+        } catch (error) {
+          lastError = error as Error;
+          continue;
+        }
+      }
+
+      throw (
+        lastError ||
+        new Error(`Failed to double-click at (${roundedX}, ${roundedY})`)
+      );
     }, "Error double-clicking at coordinates");
   }
 
@@ -428,8 +591,10 @@ export namespace Computer {
    */
   export async function tripleClickAt(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`tc:${x},${y}`);
-      return `Triple-clicked at (${x}, ${y})`;
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+      await executeCliClickCommand(`tc:${roundedX},${roundedY}`);
+      return `Triple-clicked at (${roundedX}, ${roundedY})`;
     }, "Error triple-clicking at coordinates");
   }
 
@@ -581,8 +746,10 @@ export namespace Computer {
    */
   export async function mouseDown(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`dd:${x},${y}`);
-      return `Mouse down at (${x}, ${y})`;
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+      await executeCliClickCommand(`dd:${roundedX},${roundedY}`);
+      return `Mouse down at (${roundedX}, ${roundedY})`;
     }, "Error pressing mouse down");
   }
 
@@ -594,8 +761,10 @@ export namespace Computer {
    */
   export async function mouseUp(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`du:${x},${y}`);
-      return `Mouse up at (${x}, ${y})`;
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+      await executeCliClickCommand(`du:${roundedX},${roundedY}`);
+      return `Mouse up at (${roundedX}, ${roundedY})`;
     }, "Error releasing mouse");
   }
 
@@ -614,13 +783,17 @@ export namespace Computer {
     endY: number
   ): Promise<string> {
     return executeWithErrorHandling(async () => {
+      const roundedStartX = Math.round(startX);
+      const roundedStartY = Math.round(startY);
+      const roundedEndX = Math.round(endX);
+      const roundedEndY = Math.round(endY);
       // Press down at start position
-      await executeCliClickCommand(`dd:${startX},${startY}`);
+      await executeCliClickCommand(`dd:${roundedStartX},${roundedStartY}`);
       // Move to end position
-      await executeCliClickCommand(`dm:${endX},${endY}`);
+      await executeCliClickCommand(`dm:${roundedEndX},${roundedEndY}`);
       // Release at end position
-      await executeCliClickCommand(`du:${endX},${endY}`);
-      return `Dragged mouse from (${startX}, ${startY}) to (${endX}, ${endY})`;
+      await executeCliClickCommand(`du:${roundedEndX},${roundedEndY}`);
+      return `Dragged mouse from (${roundedStartX}, ${roundedStartY}) to (${roundedEndX}, ${roundedEndY})`;
     }, "Error dragging mouse");
   }
 
@@ -637,6 +810,9 @@ export namespace Computer {
     modifiers: string
   ): Promise<string> {
     return executeWithErrorHandling(async () => {
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+
       // Map modifiers to cliclick format, as Claude will use xdotool format like "alt+ctrl"
       let formattedModifiers = modifiers;
 
@@ -649,10 +825,10 @@ export namespace Computer {
       // Hold modifier keys
       await executeCliClickCommand(`kd:${formattedModifiers}`);
       // Click at coordinates
-      await executeCliClickCommand(`c:${x},${y}`);
+      await executeCliClickCommand(`c:${roundedX},${roundedY}`);
       // Release modifier keys
       await executeCliClickCommand(`ku:${formattedModifiers}`);
-      return `Clicked at (${x}, ${y}) while holding ${modifiers}`;
+      return `Clicked at (${roundedX}, ${roundedY}) while holding ${modifiers}`;
     }, "Error clicking with modifiers");
   }
 
@@ -701,9 +877,12 @@ export namespace Computer {
     direction: "up" | "down" | "left" | "right"
   ): Promise<string> {
     return executeWithErrorHandling(async () => {
+      const roundedX = Math.round(x);
+      const roundedY = Math.round(y);
+
       // cliclick doesn't have a built-in scroll command
       // We need to move to the position first
-      await executeCliClickCommand(`m:${x},${y}`);
+      await executeCliClickCommand(`m:${roundedX},${roundedY}`);
 
       // For each scroll amount, simulate a key press
       const key =
@@ -720,7 +899,7 @@ export namespace Computer {
         // Small delay between scrolls
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      return `Scrolled ${direction} ${amount} times at (${x}, ${y})`;
+      return `Scrolled ${direction} ${amount} times at (${roundedX}, ${roundedY})`;
     }, "Error scrolling");
   }
 
