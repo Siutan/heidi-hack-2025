@@ -251,6 +251,7 @@ async function initializeWakeWordService() {
 
       if (data.name === "emr_assistance") {
         console.log("[Main] Prompting user to select source for emr_assistance...");
+        service.stop(); // Stop the wake word service/Gemini Live session
         broadcastToRenderers("rpa:prompt-select-source", {
           conversation: data.args.conversation,
           sourceId: data.args.sourceId
