@@ -231,9 +231,9 @@ export class WakeWordMatcher {
       // "hi" / "hey" / "hy" are similar
       [/^(hi|hey|hy|high)\s*/i, 'HI'],
       // "dee" / "d" / "di" / "dy" are similar  
-      [/\s*(dee|di|dy|d|de)$/i, 'DEE'],
+      [/\s*(dee|di|dy|d|de|the|thee)$/i, 'DEE'],
       // "heidi" / "hedy" / "hydie" as single word
-      [/^(heidi|hedy|hydie|haidee|haydi|heedy|hidey?)$/i, 'HIDEE'],
+      [/^(heidi|hedy|hydie|haidee|haydi|heedy|hide|hidey?)$/i, 'HIDEE'],
       // Combined forms
       [/^(hide|heyd|hayd)/i, 'HIDEE'],
     ];

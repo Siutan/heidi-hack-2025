@@ -11,19 +11,10 @@ import { WakeWordMatcher } from "./wakeWordMatcher";
 import { WakeWordStatus, WakeWordServiceConfig, DEFAULT_CONFIG } from "./types";
 
 export interface WakeWordServiceEvents {
-  // Status changes
   statusChange: (status: WakeWordStatus) => void;
-
-  // Wake word detected with optional command
   wakeDetected: (data: { transcript: string; confidence: number }) => void;
-
-  // Command captured after wake word
   commandCaptured: (data: { command: string; fullTranscript: string }) => void;
-
-  // Real-time transcript updates
   transcript: (data: { text: string; isFinal: boolean }) => void;
-
-  // Errors
   error: (error: Error) => void;
 }
 
@@ -37,7 +28,7 @@ export class WakeWordService extends EventEmitter {
   private status: WakeWordStatus = "idle";
   private isRunning = false;
   private currentTranscript = "";
-  private commandBuffer = "";
+  private commandTranscript = ""; // Separate transcript for command capture
   private wakeDetectedAt = 0;
   private lastSpeechAt = 0;
   private commandTimeout: NodeJS.Timeout | null = null;
@@ -47,7 +38,6 @@ export class WakeWordService extends EventEmitter {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
 
-    // Initialize components
     this.audioCapture = new AudioCapture(this.config.sampleRateHertz, 1);
     this.vad = new VAD({ sampleRate: this.config.sampleRateHertz });
     this.googleSpeech = new GoogleSpeechService({
@@ -62,25 +52,21 @@ export class WakeWordService extends EventEmitter {
     this.setupEventHandlers();
   }
 
-  /**
-   * Set up event handlers for all components
-   */
   private setupEventHandlers(): void {
-    // Audio capture events
+    // Audio capture → VAD
     this.audioCapture.on("data", (chunk: Buffer) => {
-      // Process through VAD
       this.vad.process(chunk);
     });
 
     this.audioCapture.on("error", (error: Error) => {
-      console.error("WakeWordService: Audio capture error:", error);
+      console.error("[WakeWordService] Audio capture error:", error);
       this.emit("error", error);
       this.setStatus("error");
     });
 
     // VAD events
     this.vad.on("speechStart", () => {
-      console.log("WakeWordService: Speech started");
+      console.log("[WakeWordService] 🎤 Speech started");
       this.lastSpeechAt = Date.now();
 
       // Start streaming to Google when speech is detected
@@ -100,7 +86,18 @@ export class WakeWordService extends EventEmitter {
     });
 
     this.vad.on("speechEnd", () => {
-      console.log("WakeWordService: Speech ended");
+      console.log("[WakeWordService] 🔇 Speech ended");
+
+      // When speech ends in idle/listening state, stop the stream to get fresh results next time
+      if (this.status === "idle" || this.status === "listening") {
+        // Give Google a moment to send final results, then stop stream
+        setTimeout(() => {
+          if (this.status === "idle" || this.status === "listening") {
+            this.googleSpeech.stopStream();
+            this.currentTranscript = "";
+          }
+        }, 500);
+      }
 
       // Check if we should end command capture
       if (this.status === "wake_detected") {
@@ -117,83 +114,81 @@ export class WakeWordService extends EventEmitter {
     );
 
     this.googleSpeech.on("error", (error: Error) => {
-      console.error("WakeWordService: Google Speech error:", error);
-      // Try to recover by restarting the stream
-      if (this.isRunning) {
+      console.error("[WakeWordService] Google Speech error:", error);
+      // Try to recover
+      if (this.isRunning && this.status !== "error") {
         setTimeout(() => {
           if (this.isRunning) {
-            this.googleSpeech.startStream();
+            this.googleSpeech.stopStream();
           }
         }, 1000);
       }
     });
   }
 
-  /**
-   * Handle transcript from Google Speech
-   */
   private handleTranscript(data: {
     text: string;
     confidence: number;
     isFinal: boolean;
   }): void {
-    this.currentTranscript = data.text;
+    const text = data.text.trim();
+    if (!text) return;
 
     console.log(
-      `[WakeWordService] Transcript received: "${data.text}" (status: ${this.status})`
+      `[WakeWordService] 📝 "${text}" (status: ${this.status}, final: ${data.isFinal})`
     );
 
-    // Emit transcript for UI updates
-    this.emit("transcript", {
-      text: data.text,
-      isFinal: data.isFinal,
-    });
+    // Emit transcript for UI
+    this.emit("transcript", { text, isFinal: data.isFinal });
 
     if (this.status === "listening") {
+      this.currentTranscript = text;
+
       // Check for wake word
-      const match = this.wakeWordMatcher.match(data.text);
-      console.log(`[WakeWordService] Wake word match result:`, match);
+      const match = this.wakeWordMatcher.match(text);
 
       if (match.matched) {
         console.log(
-          `[WakeWordService] 🎉 WAKE WORD DETECTED! "${match.matchedPhrase}" (confidence: ${match.confidence})`
+          `[WakeWordService] 🎉 WAKE WORD DETECTED! "${match.matchedPhrase}"`
         );
+
+        // Stop current stream and start fresh for command capture
+        this.googleSpeech.stopStream();
 
         this.setStatus("wake_detected");
         this.wakeDetectedAt = Date.now();
-        this.commandBuffer = match.remainingText;
+        this.commandTranscript = "";
 
         this.emit("wakeDetected", {
-          transcript: data.text,
+          transcript: text,
           confidence: match.confidence,
         });
 
+        // Start fresh stream for command capture
+        setTimeout(() => {
+          if (this.status === "wake_detected" && this.isRunning) {
+            console.log(
+              "[WakeWordService] Starting fresh stream for command capture..."
+            );
+            this.googleSpeech.startStream();
+          }
+        }, 100);
+
         // Start command timeout
         this.startCommandTimeout();
-
-        // If there's already text after the wake word and it's final, capture it
-        if (data.isFinal && match.remainingText.trim()) {
-          this.captureCommand(match.remainingText);
-        }
       }
     } else if (this.status === "wake_detected") {
-      // Capture command after wake word
-      const match = this.wakeWordMatcher.match(this.currentTranscript);
-      this.commandBuffer = match.remainingText || data.text;
-
-      // Reset silence check on new speech
+      // Capture command - this is a fresh transcript after wake word
+      this.commandTranscript = text;
       this.lastSpeechAt = Date.now();
 
-      if (data.isFinal && this.commandBuffer.trim()) {
-        // Got a final result with command text
-        this.captureCommand(this.commandBuffer);
+      // If we got a final result with actual content, capture the command
+      if (data.isFinal && text.length > 0) {
+        this.captureCommand(text);
       }
     }
   }
 
-  /**
-   * Start timeout for command capture
-   */
   private startCommandTimeout(): void {
     if (this.commandTimeout) {
       clearTimeout(this.commandTimeout);
@@ -201,23 +196,20 @@ export class WakeWordService extends EventEmitter {
 
     this.commandTimeout = setTimeout(() => {
       if (this.status === "wake_detected") {
-        console.log("WakeWordService: Command timeout reached");
-        if (this.commandBuffer.trim()) {
-          this.captureCommand(this.commandBuffer);
+        console.log("[WakeWordService] ⏰ Command timeout reached");
+        if (this.commandTranscript.trim()) {
+          this.captureCommand(this.commandTranscript);
         } else {
-          // No command captured, reset to listening
+          // No command captured, reset
+          console.log("[WakeWordService] No command captured, resetting...");
           this.resetToListening();
         }
       }
     }, this.config.commandTimeout);
 
-    // Also start checking for silence
     this.startSilenceCheck();
   }
 
-  /**
-   * Start checking for silence to end command capture
-   */
   private startSilenceCheck(): void {
     if (this.silenceCheckInterval) {
       clearInterval(this.silenceCheckInterval);
@@ -225,12 +217,9 @@ export class WakeWordService extends EventEmitter {
 
     this.silenceCheckInterval = setInterval(() => {
       this.checkSilenceTimeout();
-    }, 100);
+    }, 200);
   }
 
-  /**
-   * Check if silence timeout has been reached
-   */
   private checkSilenceTimeout(): void {
     if (this.status !== "wake_detected") {
       return;
@@ -239,21 +228,19 @@ export class WakeWordService extends EventEmitter {
     const silenceDuration = Date.now() - this.lastSpeechAt;
 
     if (silenceDuration >= this.config.silenceTimeout) {
-      console.log("WakeWordService: Silence timeout reached");
+      console.log("[WakeWordService] 🔇 Silence timeout - capturing command");
 
-      if (this.commandBuffer.trim()) {
-        this.captureCommand(this.commandBuffer);
+      if (this.commandTranscript.trim()) {
+        this.captureCommand(this.commandTranscript);
       } else {
         this.resetToListening();
       }
     }
   }
 
-  /**
-   * Capture the command and emit event
-   */
   private captureCommand(command: string): void {
-    console.log(`WakeWordService: Command captured: "${command}"`);
+    const cleanCommand = command.trim();
+    console.log(`[WakeWordService] ✅ Command captured: "${cleanCommand}"`);
 
     // Clear timeouts
     if (this.commandTimeout) {
@@ -265,24 +252,26 @@ export class WakeWordService extends EventEmitter {
       this.silenceCheckInterval = null;
     }
 
+    // Stop the stream
+    this.googleSpeech.stopStream();
+
     this.setStatus("processing");
 
     this.emit("commandCaptured", {
-      command: command.trim(),
-      fullTranscript: this.currentTranscript,
+      command: cleanCommand,
+      fullTranscript: cleanCommand,
     });
 
-    // Reset for next wake word
+    // Reset for next wake word after a short delay
     setTimeout(() => {
       this.resetToListening();
     }, 500);
   }
 
-  /**
-   * Reset to listening state
-   */
   private resetToListening(): void {
-    this.commandBuffer = "";
+    console.log("[WakeWordService] 🔄 Resetting to idle state");
+
+    this.commandTranscript = "";
     this.currentTranscript = "";
     this.wakeDetectedAt = 0;
 
@@ -295,14 +284,14 @@ export class WakeWordService extends EventEmitter {
       this.silenceCheckInterval = null;
     }
 
+    // Stop any running stream
+    this.googleSpeech.stopStream();
+
     if (this.isRunning) {
       this.setStatus("idle");
     }
   }
 
-  /**
-   * Set status and emit event
-   */
   private setStatus(status: WakeWordStatus): void {
     if (this.status !== status) {
       console.log(`[WakeWordService] Status: ${this.status} → ${status}`);
@@ -311,15 +300,11 @@ export class WakeWordService extends EventEmitter {
     }
   }
 
-  /**
-   * Initialize the service
-   */
   async initialize(): Promise<void> {
     console.log("[WakeWordService] ========================================");
     console.log("[WakeWordService] Initializing Wake Word Detection System");
     console.log("[WakeWordService] ========================================");
 
-    // Check if SoX is installed
     console.log("[WakeWordService] Checking for SoX installation...");
     const hasSox = await checkSoxInstalled();
     if (!hasSox) {
@@ -333,7 +318,6 @@ export class WakeWordService extends EventEmitter {
     }
     console.log("[WakeWordService] ✓ SoX is installed");
 
-    // Initialize Google Speech
     console.log("[WakeWordService] Initializing Google Speech...");
     await this.googleSpeech.initialize();
 
@@ -344,9 +328,6 @@ export class WakeWordService extends EventEmitter {
     );
   }
 
-  /**
-   * Start listening for wake word
-   */
   start(): void {
     if (this.isRunning) {
       console.warn("[WakeWordService] Already running");
@@ -360,19 +341,14 @@ export class WakeWordService extends EventEmitter {
     this.isRunning = true;
     this.setStatus("idle");
 
-    // Start audio capture
     console.log("[WakeWordService] Starting audio capture...");
     this.audioCapture.start();
   }
 
-  /**
-   * Stop listening
-   */
   stop(): void {
-    console.log("WakeWordService: Stopping...");
+    console.log("[WakeWordService] Stopping...");
     this.isRunning = false;
 
-    // Clear timeouts
     if (this.commandTimeout) {
       clearTimeout(this.commandTimeout);
       this.commandTimeout = null;
@@ -382,40 +358,30 @@ export class WakeWordService extends EventEmitter {
       this.silenceCheckInterval = null;
     }
 
-    // Stop all components
     this.audioCapture.stop();
     this.googleSpeech.stopStream();
     this.vad.reset();
 
     this.setStatus("idle");
-    this.commandBuffer = "";
+    this.commandTranscript = "";
     this.currentTranscript = "";
   }
 
-  /**
-   * Get current status
-   */
   getStatus(): WakeWordStatus {
     return this.status;
   }
 
-  /**
-   * Check if running
-   */
   get running(): boolean {
     return this.isRunning;
   }
 
-  /**
-   * Cleanup resources
-   */
   async destroy(): Promise<void> {
     this.stop();
     await this.googleSpeech.destroy();
   }
 }
 
-// Singleton instance for the main process
+// Singleton instance
 let instance: WakeWordService | null = null;
 
 export function getWakeWordService(): WakeWordService {

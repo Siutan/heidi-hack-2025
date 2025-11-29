@@ -1,7 +1,7 @@
 /**
  * Google Cloud Speech-to-Text Streaming Service
  * Handles streaming recognition with auto-reconnect
- * 
+ *
  * Based on: https://cloud.google.com/speech-to-text/docs/transcribe-streaming-audio
  */
 
@@ -9,8 +9,10 @@ import { EventEmitter } from "events";
 import { SpeechClient, protos } from "@google-cloud/speech";
 
 // Type aliases for cleaner code
-type IStreamingRecognitionConfig = protos.google.cloud.speech.v1.IStreamingRecognitionConfig;
-type IStreamingRecognizeResponse = protos.google.cloud.speech.v1.IStreamingRecognizeResponse;
+type IStreamingRecognitionConfig =
+  protos.google.cloud.speech.v1.IStreamingRecognitionConfig;
+type IStreamingRecognizeResponse =
+  protos.google.cloud.speech.v1.IStreamingRecognizeResponse;
 
 export interface GoogleSpeechConfig {
   languageCode: string;
@@ -28,7 +30,9 @@ export const DEFAULT_GOOGLE_SPEECH_CONFIG: GoogleSpeechConfig = {
 
 export class GoogleSpeechService extends EventEmitter {
   private client: SpeechClient | null = null;
-  private recognizeStream: ReturnType<SpeechClient["streamingRecognize"]> | null = null;
+  private recognizeStream: ReturnType<
+    SpeechClient["streamingRecognize"]
+  > | null = null;
   private config: GoogleSpeechConfig;
   private streamStartTime = 0;
   private isStreaming = false;
@@ -47,7 +51,9 @@ export class GoogleSpeechService extends EventEmitter {
       const apiKey = process.env.GOOGLE_API_KEY;
 
       console.log("[GoogleSpeech] Initializing...");
-      console.log(`[GoogleSpeech] API Key present: ${apiKey ? "YES (" + apiKey.substring(0, 8) + "...)" : "NO"}`);
+      console.log(
+        `[GoogleSpeech] API Key present: ${apiKey ? "YES (" + apiKey.substring(0, 8) + "...)" : "NO"}`
+      );
 
       if (apiKey) {
         this.client = new SpeechClient({ apiKey });
@@ -69,11 +75,15 @@ export class GoogleSpeechService extends EventEmitter {
   startStream(): void {
     if (!this.client) {
       console.error("[GoogleSpeech] ✗ Not initialized!");
-      throw new Error("GoogleSpeechService not initialized. Call initialize() first.");
+      throw new Error(
+        "GoogleSpeechService not initialized. Call initialize() first."
+      );
     }
 
     if (this.recognizeStream) {
-      console.log("[GoogleSpeech] Stopping existing stream before starting new one");
+      console.log(
+        "[GoogleSpeech] Stopping existing stream before starting new one"
+      );
       this.stopStream();
     }
 
@@ -83,16 +93,32 @@ export class GoogleSpeechService extends EventEmitter {
       // Build the streaming config - this gets passed directly to streamingRecognize
       const streamingConfig: IStreamingRecognitionConfig = {
         config: {
-          encoding: protos.google.cloud.speech.v1.RecognitionConfig.AudioEncoding.LINEAR16,
+          encoding:
+            protos.google.cloud.speech.v1.RecognitionConfig.AudioEncoding
+              .LINEAR16,
           sampleRateHertz: this.config.sampleRateHertz,
           languageCode: this.config.languageCode,
           enableAutomaticPunctuation: this.config.enableAutomaticPunctuation,
           speechContexts: [
             {
               phrases: [
-                "Hi Dee", "Hi D", "Heidi", "Hey Dee", "Hey D",
-                "Hedy", "Hide E", "Hydie", "HeyDee", "Hi Di", "Hey Di",
-                "record", "session", "start", "stop", "notes", "patient",
+                "Hi Dee",
+                "Hi D",
+                "Heidi",
+                "Hey Dee",
+                "Hey D",
+                "Hedy",
+                "Hide E",
+                "Hydie",
+                "HeyDee",
+                "Hi Di",
+                "Hey Di",
+                "record",
+                "session",
+                "start",
+                "stop",
+                "notes",
+                "patient",
               ],
               boost: 15,
             },
@@ -104,15 +130,18 @@ export class GoogleSpeechService extends EventEmitter {
 
       // Create the stream - passing the config here means we ONLY write audio afterwards
       this.recognizeStream = this.client.streamingRecognize(streamingConfig);
-      
+
       this.streamStartTime = Date.now();
       this.isStreaming = true;
       this.writeCount = 0;
 
       // Handle responses
-      this.recognizeStream.on("data", (response: IStreamingRecognizeResponse) => {
-        this.handleResponse(response);
-      });
+      this.recognizeStream.on(
+        "data",
+        (response: IStreamingRecognizeResponse) => {
+          this.handleResponse(response);
+        }
+      );
 
       this.recognizeStream.on("error", (error: Error) => {
         console.error("[GoogleSpeech] ✗ Stream error:", error.message);
@@ -133,7 +162,6 @@ export class GoogleSpeechService extends EventEmitter {
 
       // Flush any pending audio (now we can send audio-only messages)
       this.flushPendingAudio();
-      
     } catch (error) {
       console.error("[GoogleSpeech] ✗ Failed to start stream:", error);
       this.emit("error", error);
@@ -160,7 +188,9 @@ export class GoogleSpeechService extends EventEmitter {
 
     try {
       if (this.writeCount === 0) {
-        console.log(`[GoogleSpeech] Sending first audio chunk (${audioChunk.length} bytes)...`);
+        console.log(
+          `[GoogleSpeech] Sending first audio chunk (${audioChunk.length} bytes)...`
+        );
       }
 
       // Write raw audio bytes directly to the stream
@@ -170,7 +200,9 @@ export class GoogleSpeechService extends EventEmitter {
 
       const now = Date.now();
       if (now - this.lastWriteLogTime > 3000) {
-        console.log(`[GoogleSpeech] Sent ${this.writeCount} audio chunks to Google`);
+        console.log(
+          `[GoogleSpeech] Sent ${this.writeCount} audio chunks to Google`
+        );
         this.lastWriteLogTime = now;
       }
     } catch (error) {
@@ -212,7 +244,9 @@ export class GoogleSpeechService extends EventEmitter {
       const confidence = result.alternatives[0].confidence || 0;
       const isFinal = result.isFinal || false;
 
-      console.log(`[GoogleSpeech] 📝 Transcript: "${transcript}" (final: ${isFinal}, confidence: ${confidence.toFixed(2)})`);
+      console.log(
+        `[GoogleSpeech] 📝 Transcript: "${transcript}" (final: ${isFinal}, confidence: ${confidence.toFixed(2)})`
+      );
 
       this.emit("transcript", {
         text: transcript,
@@ -245,7 +279,11 @@ export class GoogleSpeechService extends EventEmitter {
   }
 
   private flushPendingAudio(): void {
-    while (this.pendingAudio.length > 0 && this.isStreaming && this.recognizeStream) {
+    while (
+      this.pendingAudio.length > 0 &&
+      this.isStreaming &&
+      this.recognizeStream
+    ) {
       const chunk = this.pendingAudio.shift();
       if (chunk) {
         this.write(chunk);

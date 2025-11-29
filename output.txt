@@ -1,0 +1,548 @@
+12:44:22   ~/..../heidi-hack-2025  mukil/wake-word bun start
+$ electron-forge start
+✔ Checking your system
+✔ Locating application
+✔ Loading configuration
+✔ Preparing native dependencies: 1 / 1 [0.3s]
+✔ Running generateAssets hook
+✔ Running preStart hook
+  ✔ [plugin-vite] Preparing Vite bundles
+    ✔ Launched Vite dev servers for renderer process code [0.4s]
+      ✔ Target main_window
+        › ➜  Local:   http://localhost:5173/
+          ➜  Network: use --host to expose
+      ✔ Target overlay_window
+        › ➜  Local:   http://localhost:5174/
+          ➜  Network: use --host to expose
+    ✔ Built main process and preload bundles [0.2s]
+      ✔ Building src/main.ts target
+      ✔ Building src/preload.ts target
+✔ Launched Electron app. Type rs in terminal to restart main process.
+
+Port 5173 is in use, trying another one...
+12:44:26 pm [@electron-forge/plugin-vite] target built src/preload.ts
+12:44:26 pm [@electron-forge/plugin-vite] target built src/main.ts
+
+[dotenv@17.2.3] injecting env (2) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+[Main] Loaded .env from: /Users/mukilchittybabu/code/heidi-hack-2025/.env
+[Main] ========================================
+[Main] Application Starting
+[Main] ========================================
+[Main] CWD: /Users/mukilchittybabu/code/heidi-hack-2025
+[Main] __dirname: /Users/mukilchittybabu/code/heidi-hack-2025/.vite/build
+[Main] GOOGLE_API_KEY: SET (AIzaSyDZzx...)
+{ screenWidth: 1920, windowWidth: 510, windowHeight: 100 }
+[76064:1129/124427.806884:ERROR:CONSOLE:1] "Request Autofill.enable failed. {"code":-32601,"message":"'Autofill.enable' wasn't found"}", source: devtools://devtools/bundled/core/protocol_client/protocol_client.js (1)
+[76064:1129/124427.807061:ERROR:CONSOLE:1] "Request Autofill.setAddresses failed. {"code":-32601,"message":"'Autofill.setAddresses' wasn't found"}", source: devtools://devtools/bundled/core/protocol_client/protocol_client.js (1)
+[76064:1129/124427.907586:ERROR:CONSOLE:1] "Request Autofill.enable failed. {"code":-32601,"message":"'Autofill.enable' wasn't found"}", source: devtools://devtools/bundled/core/protocol_client/protocol_client.js (1)
+[76064:1129/124427.908382:ERROR:CONSOLE:1] "Request Autofill.setAddresses failed. {"code":-32601,"message":"'Autofill.setAddresses' wasn't found"}", source: devtools://devtools/bundled/core/protocol_client/protocol_client.js (1)
+{ status: 'granted' }
+{ status: 'granted' }
+[Main] IPC: wake-word-start received
+[Main] ========================================
+[Main] Initializing Wake Word Service
+[Main] ========================================
+[Main] GOOGLE_API_KEY: SET
+[WakeWordService] ========================================
+[WakeWordService] Initializing Wake Word Detection System
+[WakeWordService] ========================================
+[WakeWordService] Checking for SoX installation...
+[WakeWordService] ✓ SoX is installed
+[WakeWordService] Initializing Google Speech...
+[GoogleSpeech] Initializing...
+[GoogleSpeech] API Key present: YES (AIzaSyDZ...)
+[GoogleSpeech] ✓ Initialized with API key
+[WakeWordService] ✓ Initialization complete!
+[WakeWordService] Wake words: hi dee, hi d, heidi, hey dee, hey d, hedy, hide e, hydie, heydee, hi di, hey di
+[Main] ✓ Wake word service initialized successfully
+[WakeWordService] ========================================
+[WakeWordService] Starting wake word detection
+[WakeWordService] ========================================
+[WakeWordService] Starting audio capture...
+[AudioCapture] Starting audio capture via node-record-lpcm16...
+[AudioCapture] Sample rate: 16000, Channels: 1
+[AudioCapture] ✓ Started capturing audio successfully
+[Main] ✓ Wake word service started
+[AudioCapture] ✓ Received 1 chunks (~8.0 KB)
+[VAD] Energy: 0.1578 (max seen: 0.1578, threshold: 0.02)
+[VAD] 🎤 Speech STARTED
+WakeWordService: Speech started
+[GoogleSpeech] Starting new stream...
+[GoogleSpeech] ✓ Stream started successfully
+[WakeWordService] Status: idle → listening
+[Main] Status change: listening
+[GoogleSpeech] Sending first audio chunk (8192 bytes)...
+[GoogleSpeech] Sent 1 audio chunks to Google
+[VAD] 🔇 Speech ENDED
+WakeWordService: Speech ended
+[AudioCapture] ✓ Received 12 chunks (~96.0 KB)
+[VAD] Energy: 0.0082 (max seen: 0.1578, threshold: 0.02)
+[GoogleSpeech] 📝 Transcript: "Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi." (status: listening)
+[Main] Transcript: Hi.
+[WakeWordService] Wake word match result: {
+  matched: false,
+  matchedPhrase: '',
+  matchedWakeWord: '',
+  confidence: 0,
+  remainingText: 'Hi.'
+}
+[GoogleSpeech] 📝 Transcript: "Hi, hi. Hi" (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi. Hi" (status: listening)
+[Main] Transcript: Hi, hi. Hi
+[WakeWordService] Wake word match result: {
+  matched: false,
+  matchedPhrase: '',
+  matchedWakeWord: '',
+  confidence: 0,
+  remainingText: 'Hi, hi. Hi'
+}
+[GoogleSpeech] 📝 Transcript: "Hi, hi. Hi. Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi. Hi. Hi." (status: listening)
+[Main] Transcript: Hi, hi. Hi. Hi.
+[WakeWordService] Wake word match result: {
+  matched: false,
+  matchedPhrase: '',
+  matchedWakeWord: '',
+  confidence: 0,
+  remainingText: 'Hi, hi. Hi. Hi.'
+}
+[GoogleSpeech] 📝 Transcript: "Hi," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi," (status: listening)
+[Main] Transcript: Hi,
+[WakeWordService] Wake word match result: {
+  matched: false,
+  matchedPhrase: '',
+  matchedWakeWord: '',
+  confidence: 0,
+  remainingText: 'Hi,'
+}
+[GoogleSpeech] 📝 Transcript: " hi. Hi. Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " hi. Hi. Hi." (status: listening)
+[Main] Transcript:  hi. Hi. Hi.
+[WakeWordService] Wake word match result: {
+  matched: false,
+  matchedPhrase: '',
+  matchedWakeWord: '',
+  confidence: 0,
+  remainingText: ' hi. Hi. Hi.'
+}
+[GoogleSpeech] 📝 Transcript: "Hi," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi," (status: listening)
+[Main] Transcript: Hi,
+[WakeWordService] Wake word match result: {
+  matched: false,
+  matchedPhrase: '',
+  matchedWakeWord: '',
+  confidence: 0,
+  remainingText: 'Hi,'
+}
+[GoogleSpeech] 📝 Transcript: " hi. Hi. Hi d." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " hi. Hi. Hi d." (status: listening)
+[Main] Transcript:  hi. Hi. Hi d.
+[WakeWordService] Wake word match result: {
+  matched: true,
+  matchedPhrase: 'hi d',
+  matchedWakeWord: 'hi d',
+  confidence: 1,
+  remainingText: '.'
+}
+[WakeWordService] 🎉 WAKE WORD DETECTED! "hi d" (confidence: 1)
+[WakeWordService] Status: listening → wake_detected
+[Main] Status change: wake_detected
+[Main] 🎉 Wake word detected: { transcript: ' hi. Hi. Hi d.', confidence: 1 }
+WakeWordService: Silence timeout reached
+WakeWordService: Command captured: "."
+[WakeWordService] Status: wake_detected → processing
+[Main] Status change: processing
+[Main] 📝 Command captured: { command: '.', fullTranscript: ' hi. Hi. Hi d.' }
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi." (status: processing)
+[Main] Transcript: Hi, hi, hi.
+[GoogleSpeech] 📝 Transcript: " Hi D. Hi," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " Hi D. Hi," (status: processing)
+[Main] Transcript:  Hi D. Hi,
+[GoogleSpeech] 📝 Transcript: "Hi, hi. Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi. Hi." (status: processing)
+[Main] Transcript: Hi, hi. Hi.
+[GoogleSpeech] 📝 Transcript: " Hi d." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " Hi d." (status: processing)
+[Main] Transcript:  Hi d.
+[GoogleSpeech] 📝 Transcript: "Hi, hi. Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi. Hi." (status: processing)
+[Main] Transcript: Hi, hi. Hi.
+[GoogleSpeech] 📝 Transcript: " Hi D. Hi D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " Hi D. Hi D." (status: processing)
+[Main] Transcript:  Hi D. Hi D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi. Hi. Hi" (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi. Hi. Hi" (status: processing)
+[Main] Transcript: Hi, hi. Hi. Hi
+[GoogleSpeech] 📝 Transcript: " D. Hi D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D. Hi D." (status: processing)
+[Main] Transcript:  D. Hi D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi" (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi" (status: processing)
+[Main] Transcript: Hi, hi, hi. Hi
+[GoogleSpeech] 📝 Transcript: " D. Hi," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D. Hi," (status: processing)
+[Main] Transcript:  D. Hi,
+[GoogleSpeech] 📝 Transcript: "Hi, hi. Hi. Hi" (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi. Hi. Hi" (status: processing)
+[Main] Transcript: Hi, hi. Hi. Hi
+[GoogleSpeech] 📝 Transcript: " D. Hi D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D. Hi D." (status: processing)
+[Main] Transcript:  D. Hi D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi. Hi. Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi. Hi. Hi." (status: processing)
+[Main] Transcript: Hi, hi. Hi. Hi.
+[GoogleSpeech] 📝 Transcript: " D. D. D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D. D. D, D, D." (status: processing)
+[Main] Transcript:  D. D. D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi." (status: processing)
+[Main] Transcript: Hi, hi, hi. Hi.
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D." (status: processing)
+[Main] Transcript:  D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi." (status: processing)
+[Main] Transcript: Hi, hi, hi. Hi.
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: processing)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[WakeWordService] Status: processing → idle
+[Main] Status change: idle
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: idle)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: idle)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[AudioCapture] ✓ Received 12 chunks (~96.0 KB)
+[VAD] Energy: 0.0097 (max seen: 0.1578, threshold: 0.02)
+[VAD] 🎤 Speech STARTED
+WakeWordService: Speech started
+[WakeWordService] Status: idle → listening
+[Main] Status change: listening
+[GoogleSpeech] Sent 37 audio chunks to Google
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: listening)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[WakeWordService] Wake word match result: {
+  matched: true,
+  matchedPhrase: 'hi. d,',
+  matchedWakeWord: 'hi d',
+  confidence: 0.6000000000000001,
+  remainingText: 'd, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d,'
+}
+[WakeWordService] 🎉 WAKE WORD DETECTED! "hi. d," (confidence: 0.6000000000000001)
+[WakeWordService] Status: listening → wake_detected
+[Main] Status change: wake_detected
+[Main] 🎉 Wake word detected: {
+  transcript: 'Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,',
+  confidence: 0.6000000000000001
+}
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[VAD] 🔇 Speech ENDED
+WakeWordService: Speech ended
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D," (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D,
+[GoogleSpeech] 📝 Transcript: " D, D, D, D, D." (final: false, confidence: 0.00)
+[WakeWordService] Transcript received: " D, D, D, D, D." (status: wake_detected)
+[Main] Transcript:  D, D, D, D, D.
+[GoogleSpeech] 📝 Transcript: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D." (final: true, confidence: 0.23)
+[WakeWordService] Transcript received: "Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D." (status: wake_detected)
+[Main] Transcript: Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D.
+WakeWordService: Command captured: "d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d."
+[WakeWordService] Status: wake_detected → processing
+[Main] Status change: processing
+[Main] 📝 Command captured: {
+  command: 'd, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d.',
+  fullTranscript: 'Hi, hi, hi. Hi. D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D.'
+}
+[WakeWordService] Status: processing → idle
