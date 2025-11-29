@@ -2,18 +2,21 @@ import {
   app,
   BrowserWindow,
   screen,
-  ipcMain, desktopCapturer, dialog,
+  ipcMain,
+  desktopCapturer,
+  dialog,
   systemPreferences,
 } from "electron";
 import path from "node:path";
 import { exec } from "child_process";
-import 'dotenv/config'; // Load .env file
+import "dotenv/config"; // Load .env file
 import started from "electron-squirrel-startup";
 import * as dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { interpretAndExecuteCommand } from "./services/interpreter-service";
 import { getWakeWordService, destroyWakeWordService } from "./wake";
 import { fillTemplate } from "./services/gemini-tools";
+import { startHeidiTranscription } from "./wake/geminiCommand";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -44,7 +47,7 @@ console.log(
     ? `SET (${process.env.GEMINI_API_KEY.substring(0, 10)}...)`
     : "NOT SET ⚠️"
 );
-import { generateMockData, performAutomation } from './rpa';
+import { generateMockData, performAutomation } from "./rpa";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -245,6 +248,14 @@ async function initializeWakeWordService() {
       broadcastToRenderers("wake-word-error", error.message);
     });
 
+    service.on(
+      "toolCall",
+      (data: { name: string; args: Record<string, unknown> }) => {
+        console.log("[Main] 🔧 Tool call received:", data.name, data.args);
+        broadcastToRenderers("tool-call", data);
+      }
+    );
+
     await service.initialize();
     wakeWordInitialized = true;
     console.log("[Main] ✓ Wake word service initialized successfully");
@@ -349,23 +360,45 @@ const createWindow = () => {
 
   createOverlayWindow();
 
-  ipcMain.handle('get-sources', async () => {
-    const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] });
-    return sources.map(source => ({
+  ipcMain.handle("get-sources", async () => {
+    const sources = await desktopCapturer.getSources({
+      types: ["window", "screen"],
+    });
+    return sources.map((source) => ({
       id: source.id,
       name: source.name,
-      thumbnail: source.thumbnail.toDataURL()
+      thumbnail: source.thumbnail.toDataURL(),
     }));
   });
 
-  ipcMain.handle('rpa:fill-template', async (event, conversation: string, sourceId?: string) => {
-    return await fillTemplate(event.sender, conversation, sourceId);
+  ipcMain.handle(
+    "rpa:fill-template",
+    async (event, conversation: string, sourceId?: string) => {
+      return await fillTemplate(event.sender, conversation, sourceId);
+    }
+  );
+
+  // Handler to start Heidi transcription
+  ipcMain.handle("start-heidi-transcription", async () => {
+    console.log("[Main] IPC: start-heidi-transcription received");
+    try {
+      const result = await startHeidiTranscription();
+      console.log("[Main] Heidi transcription started:", result);
+      return { success: true, message: result };
+    } catch (error) {
+      console.error("[Main] Error starting Heidi transcription:", error);
+      return {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to start transcription",
+      };
+    }
   });
 };
 
-
 app.on("ready", createWindow);
-
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
