@@ -281,7 +281,7 @@ const OverlayApp = () => {
             ) : voiceStatus === "processing" ? (
               <div className="flex flex-col">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
+                  <div className="relative space-y-1">
                     <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce"></div>
                     <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce delay-75"></div>
                     <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce delay-150"></div>

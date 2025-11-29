@@ -5,6 +5,9 @@
  */
 
 import { EventEmitter } from "events";
+import { exec, spawn } from "child_process";
+import { promisify } from "util";
+import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 import { AudioCapture, checkSoxInstalled } from "./audioCapture";
 import { VAD } from "./vad";
 import { GoogleSpeechService } from "./googleSpeech";
@@ -15,6 +18,95 @@ import {
   ToolCallResult,
 } from "./geminiCommand";
 import { WakeWordStatus, WakeWordServiceConfig, DEFAULT_CONFIG } from "./types";
+
+const execPromise = promisify(exec);
+
+// Google Cloud TTS client (singleton)
+let ttsClient: TextToSpeechClient | null = null;
+
+function getTTSClient(): TextToSpeechClient {
+  if (!ttsClient) {
+    ttsClient = new TextToSpeechClient({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return ttsClient;
+}
+
+/**
+ * Speak text using Google Cloud Text-to-Speech with Gemini TTS
+ * Uses the gemini-2.5-flash-tts model for natural, controllable speech
+ * @see https://cloud.google.com/text-to-speech/docs/gemini-tts
+ */
+async function speakText(text: string): Promise<void> {
+  try {
+    console.log("[WakeWordService] 🔊 Generating TTS audio with Gemini TTS...");
+
+    const client = getTTSClient();
+
+    // Use Gemini TTS model with Aoede voice (friendly female voice)
+    // Available voices: Aoede, Charon, Fenrir, Kore, Puck, etc.
+    const [response] = await client.synthesizeSpeech({
+      input: { text },
+      voice: {
+        languageCode: "en-US",
+        name: "Aoede", // Gemini TTS voice - friendly and natural
+      },
+      audioConfig: {
+        audioEncoding: "LINEAR16",
+        sampleRateHertz: 24000,
+      },
+    });
+
+    if (response.audioContent) {
+      console.log("[WakeWordService] 🔊 Playing TTS audio...");
+
+      // Play the audio using sox's play command
+      const playProcess = spawn("play", [
+        "-t",
+        "raw",
+        "-r",
+        "24000",
+        "-e",
+        "signed",
+        "-b",
+        "16",
+        "-c",
+        "1",
+        "-",
+      ]);
+
+      // Write audio data to stdin
+      playProcess.stdin.write(response.audioContent);
+      playProcess.stdin.end();
+
+      // Wait for playback to complete
+      await new Promise<void>((resolve, reject) => {
+        playProcess.on("close", (code) => {
+          if (code === 0) {
+            console.log("[WakeWordService] 🔊 TTS playback complete");
+            resolve();
+          } else {
+            reject(new Error(`play exited with code ${code}`));
+          }
+        });
+        playProcess.on("error", reject);
+      });
+    }
+  } catch (error) {
+    console.error("[WakeWordService] TTS error:", error);
+    // Fallback to macOS say command
+    try {
+      console.log("[WakeWordService] Falling back to macOS TTS...");
+      const escapedText = text.replace(/'/g, "'\\''");
+      await execPromise(`say -v Samantha '${escapedText}'`);
+      console.log("[WakeWordService] 🔊 Fallback TTS complete");
+    } catch (fallbackError) {
+      console.error(
+        "[WakeWordService] Fallback TTS also failed:",
+        fallbackError
+      );
+    }
+  }
+}
 
 export interface WakeWordServiceEvents {
   statusChange: (status: WakeWordStatus) => void;
@@ -226,15 +318,32 @@ export class WakeWordService extends EventEmitter {
         // Emit the response
         this.emit("geminiResponse", { text: result.response });
 
-        // Emit the tool call if one was made
+        // Speak the response using TTS FIRST (before tool execution)
+        console.log(
+          "[WakeWordService] 🔊 Speaking response before tool execution..."
+        );
+        try {
+          await speakText(result.response);
+        } catch (err) {
+          console.error("[WakeWordService] TTS error:", err);
+        }
+
+        // Emit the tool call AFTER TTS completes
         if (result.toolName !== "none") {
+          console.log("[WakeWordService] 🔧 Now executing tool...");
           this.emit("toolCall", { name: result.toolName, args: result.args });
         }
       } else {
         console.log("[WakeWordService] No result from Gemini");
-        this.emit("geminiResponse", {
-          text: "Sorry, I didn't catch that. Could you try again?",
-        });
+        const fallbackText = "Sorry, I didn't catch that. Could you try again?";
+        this.emit("geminiResponse", { text: fallbackText });
+
+        // Speak the fallback response
+        try {
+          await speakText(fallbackText);
+        } catch (err) {
+          console.error("[WakeWordService] TTS error:", err);
+        }
       }
     } catch (error) {
       console.error("[WakeWordService] Error processing command:", error);

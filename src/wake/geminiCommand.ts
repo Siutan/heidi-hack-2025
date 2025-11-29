@@ -198,7 +198,8 @@ async function executeToolCall(
     case "type_text": {
       const text = args.text as string;
       if (!text) throw new Error("text is required for type_text");
-      return await Computer.type(text);
+      // Use paste instead of type for better reliability with long text and special characters
+      return await Computer.paste(text);
     }
 
     case "take_screenshot": {
@@ -223,10 +224,13 @@ async function executeToolCall(
       return await stopHeidiTranscription();
     }
 
-    case "emr_assistance":
-      // This is handled by the overlay/UI layer
-      console.log(`[GeminiCommand] Tool ${toolName} will be handled by UI`);
-      return `Tool ${toolName} will be handled by UI`;
+    case "emr_assistance": {
+      // Execute EMR assistance - open Careflow and paste
+      console.log(
+        `[GeminiCommand] Executing EMR assistance for tool: ${toolName}`
+      );
+      return await executeEMRAssistance();
+    }
 
     default:
       console.log(`[GeminiCommand] Unknown tool: ${toolName}`);
@@ -255,44 +259,64 @@ async function openUrl(url: string): Promise<string> {
 async function startHeidiTranscription(): Promise<string> {
   console.log("[GeminiCommand] Starting Heidi transcription...");
 
+  // Known coordinates for the Transcribe button
+  const TRANSCRIBE_BUTTON_X = 1800;
+  const TRANSCRIBE_BUTTON_Y = 115;
+
   try {
     // Step 1: Open the Heidi Health scribe URL
+    console.log("[GeminiCommand] Step 1: Opening Heidi Health scribe URL...");
     await openUrl("https://scribe.heidihealth.com/");
-    console.log("[GeminiCommand] Opened Heidi Health scribe page");
+    console.log("[GeminiCommand] ✓ Opened Heidi Health scribe page");
 
     // Step 2: Wait for the page to load
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    // Step 3: Take a screenshot to find the transcribe button
     console.log(
-      "[GeminiCommand] Taking screenshot to locate transcribe button..."
+      "[GeminiCommand] Step 2: Waiting 4 seconds for page to load..."
     );
-    const screenshotBase64 = await Computer.takeScreenshot();
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    console.log("[GeminiCommand] ✓ Wait complete");
 
-    // Step 4: Find and click the transcribe button using Gemini vision
-    const buttonLocation = await findTranscribeButton(screenshotBase64);
-
-    if (buttonLocation) {
-      console.log(
-        `[GeminiCommand] Found transcribe button at (${buttonLocation.x}, ${buttonLocation.y})`
+    // Step 3: Bring browser to foreground using AppleScript
+    console.log("[GeminiCommand] Step 3: Bringing browser to foreground...");
+    try {
+      await execPromise(
+        `osascript -e 'tell application "Google Chrome" to activate'`
       );
-      await Computer.clickAt(buttonLocation.x, buttonLocation.y);
-      return "Successfully started Heidi transcription";
-    } else {
-      // Fallback: Try clicking at a common location for the transcribe button
-      // Based on the screenshot, it's typically in the top-right area
-      console.log(
-        "[GeminiCommand] Using fallback location for transcribe button"
-      );
-      const dimensions = await Computer.getDisplayDimensions();
-      // The transcribe button is typically around 100px from right edge and 50px from top
-      const fallbackX = dimensions.width - 100;
-      const fallbackY = 50;
-      await Computer.clickAt(fallbackX, fallbackY);
-      return "Started Heidi transcription (used fallback location)";
+    } catch {
+      try {
+        await execPromise(
+          `osascript -e 'tell application "Safari" to activate'`
+        );
+      } catch {
+        try {
+          await execPromise(
+            `osascript -e 'tell application "Arc" to activate'`
+          );
+        } catch {
+          console.log(
+            "[GeminiCommand] Could not activate browser, continuing anyway..."
+          );
+        }
+      }
     }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log("[GeminiCommand] ✓ Browser activation attempted");
+
+    // Step 4: Click the transcribe button at known coordinates (verify=false for exact click)
+    console.log(
+      `[GeminiCommand] Step 4: Clicking transcribe button at (${TRANSCRIBE_BUTTON_X}, ${TRANSCRIBE_BUTTON_Y})...`
+    );
+    // 1 second pause before clicking
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await Computer.clickAt(TRANSCRIBE_BUTTON_X, TRANSCRIBE_BUTTON_Y, false);
+    console.log("[GeminiCommand] ✓ Transcribe button clicked");
+
+    return "Successfully started Heidi transcription";
   } catch (error) {
-    console.error("[GeminiCommand] Error starting Heidi transcription:", error);
+    console.error(
+      "[GeminiCommand] ✗ Error starting Heidi transcription:",
+      error
+    );
     throw error;
   }
 }
@@ -310,17 +334,41 @@ async function stopHeidiTranscription(): Promise<string> {
   const POPUP_CONFIRM_Y = 689;
 
   try {
-    // Step 1: Click to focus browser window first
-    console.log("[GeminiCommand] Step 1: Clicking to focus browser window...");
-    await Computer.clickAt(500, 300);
+    // Step 1: Bring browser to foreground using AppleScript
+    console.log("[GeminiCommand] Step 1: Bringing browser to foreground...");
+    try {
+      await execPromise(
+        `osascript -e 'tell application "Google Chrome" to activate'`
+      );
+    } catch {
+      // Try Safari if Chrome fails
+      try {
+        await execPromise(
+          `osascript -e 'tell application "Safari" to activate'`
+        );
+      } catch {
+        // Try Arc browser
+        try {
+          await execPromise(
+            `osascript -e 'tell application "Arc" to activate'`
+          );
+        } catch {
+          console.log(
+            "[GeminiCommand] Could not activate browser, continuing anyway..."
+          );
+        }
+      }
+    }
     await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log("[GeminiCommand] ✓ Focus click done");
+    console.log("[GeminiCommand] ✓ Browser activation attempted");
 
-    // Step 2: Click the stop transcribing button
+    // Step 2: Click the stop transcribing button (use verify=false for exact coordinates)
     console.log(
       `[GeminiCommand] Step 2: Clicking stop transcribing button at (${STOP_BUTTON_X}, ${STOP_BUTTON_Y})...`
     );
-    await Computer.clickAt(STOP_BUTTON_X, STOP_BUTTON_Y);
+    // 1 second pause before clicking
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await Computer.clickAt(STOP_BUTTON_X, STOP_BUTTON_Y, false);
     console.log("[GeminiCommand] ✓ Stop button clicked");
 
     // Step 3: Wait 2 seconds for popup to appear
@@ -328,12 +376,14 @@ async function stopHeidiTranscription(): Promise<string> {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     console.log("[GeminiCommand] ✓ Wait complete");
 
-    // Step 4: Click the confirm button in popup
+    // Step 4: Click the confirm button in popup (use verify=false for exact coordinates)
     console.log(
       `[GeminiCommand] Step 4: Clicking popup confirm at (${POPUP_CONFIRM_X}, ${POPUP_CONFIRM_Y})...`
     );
-    const result = await Computer.clickAt(POPUP_CONFIRM_X, POPUP_CONFIRM_Y);
-    console.log(`[GeminiCommand] ✓ Popup click result: ${result}`);
+    // 1 second pause before clicking
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await Computer.clickAt(POPUP_CONFIRM_X, POPUP_CONFIRM_Y, false);
+    console.log("[GeminiCommand] ✓ Popup confirm clicked");
 
     return "Successfully stopped Heidi transcription";
   } catch (error) {
@@ -346,47 +396,100 @@ async function stopHeidiTranscription(): Promise<string> {
 }
 
 /**
- * Use Gemini vision to find the transcribe button in a screenshot
+ * Execute EMR assistance - open mock EHR app, click, select all, delete, and paste
  */
-async function findTranscribeButton(
-  screenshotBase64: string
-): Promise<{ x: number; y: number } | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.warn("[GeminiCommand] No GEMINI_API_KEY for vision analysis");
-    return null;
-  }
+async function executeEMRAssistance(): Promise<string> {
+  console.log("[GeminiCommand] Executing EMR assistance...");
+
+  // Known coordinates for the text field
+  const TEXT_FIELD_X = 900;
+  const TEXT_FIELD_Y = 540;
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Step 0a: Click at (1000, 285)
+    console.log("[GeminiCommand] Step 0a: Clicking at (1000, 285)...");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await Computer.clickAt(1000, 285, false);
+    console.log("[GeminiCommand] ✓ Click at (1000, 285) done");
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: "image/png",
-          data: screenshotBase64,
-        },
-      },
-      `return { "x":1800, "y":115}`,
-    ]);
+    // Step 0b: Click at (1000, 328)
+    console.log("[GeminiCommand] Step 0b: Clicking at (1000, 328)...");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await Computer.clickAt(1000, 328, false);
+    console.log("[GeminiCommand] ✓ Click at (1000, 328) done");
 
-    const text = result.response.text();
-    console.log("[GeminiCommand] Vision response:", text);
+    // Step 0c: Delay 1 second
+    console.log("[GeminiCommand] Step 0c: Waiting 1 second...");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    console.log("[GeminiCommand] ✓ Wait complete");
 
-    // Parse the JSON response
-    const match = text.match(/\{[^}]+\}/);
-    if (match) {
-      const coords = JSON.parse(match[0]);
-      if (coords.x !== null && coords.y !== null) {
-        return { x: coords.x, y: coords.y };
+    // Step 1: Try to open/bring to foreground the mock EHR desktop app
+    console.log("[GeminiCommand] Step 1: Opening mock ehr desktop app...");
+    let appOpened = false;
+    try {
+      await execPromise(`open -a "mock ehr desktop app"`);
+      appOpened = true;
+      console.log("[GeminiCommand] ✓ mock ehr desktop app opened");
+    } catch {
+      console.log(
+        "[GeminiCommand] Could not open with 'open -a', trying AppleScript..."
+      );
+      // Try using AppleScript to activate the app
+      try {
+        await execPromise(
+          `osascript -e 'tell application "mock ehr desktop app" to activate'`
+        );
+        appOpened = true;
+        console.log(
+          "[GeminiCommand] ✓ mock ehr desktop app activated via AppleScript"
+        );
+      } catch {
+        console.log("[GeminiCommand] AppleScript failed too");
       }
     }
-  } catch (error) {
-    console.error("[GeminiCommand] Error finding transcribe button:", error);
-  }
 
-  return null;
+    if (!appOpened) {
+      console.log(
+        "[GeminiCommand] Could not open mock ehr desktop app, will use current window"
+      );
+    }
+
+    // Step 2: Wait for app to come to foreground
+    console.log("[GeminiCommand] Step 2: Waiting for app to be ready...");
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    console.log("[GeminiCommand] ✓ Wait complete");
+
+    // Step 3: Click on the text field
+    console.log(
+      `[GeminiCommand] Step 3: Clicking on text field at (${TEXT_FIELD_X}, ${TEXT_FIELD_Y})...`
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await Computer.clickAt(TEXT_FIELD_X, TEXT_FIELD_Y, false);
+    console.log("[GeminiCommand] ✓ Text field clicked");
+
+    // Step 4: Select all (Cmd+A)
+    console.log("[GeminiCommand] Step 4: Selecting all text (Cmd+A)...");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await Computer.pressKey("cmd+a");
+    console.log("[GeminiCommand] ✓ Select all done");
+
+    // Step 5: Delete selected text
+    console.log("[GeminiCommand] Step 5: Deleting selected text...");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await Computer.pressKey("backspace");
+    console.log("[GeminiCommand] ✓ Text deleted");
+
+    // Step 6: Paste from clipboard (Cmd+V)
+    console.log("[GeminiCommand] Step 6: Pasting from clipboard (Cmd+V)...");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await Computer.pressKey("cmd+v");
+    console.log("[GeminiCommand] ✓ Paste complete");
+
+    return "Successfully executed EMR assistance";
+  } catch (error) {
+    console.error("[GeminiCommand] ✗ Error executing EMR assistance:", error);
+    throw error;
+  }
 }
 
 export class GeminiCommandService extends EventEmitter {
@@ -608,6 +711,7 @@ export function destroyGeminiCommandService(): void {
 export {
   startHeidiTranscription,
   stopHeidiTranscription,
+  executeEMRAssistance,
   openUrl,
   executeToolCall,
 };
