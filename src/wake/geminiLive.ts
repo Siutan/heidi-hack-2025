@@ -252,12 +252,9 @@ export class GeminiLiveService extends EventEmitter {
             
             // Execute tool locally
             if (toolCall.name === 'emr_assistance') {
-                  this.emit("textResponse", part.text);
                   console.log("[GeminiLive] Executing emr_assistance...");
                   this.emit("toolCall", toolCall);
-                  this.endSession();
             }
-
           }
         }
       }
@@ -277,7 +274,7 @@ export class GeminiLiveService extends EventEmitter {
   }
 
   /**
-   * End the current session
+   * EndHi. the current session
    */
   endSession(): void {
     if (this.session) {

@@ -4,7 +4,7 @@ import { GripVertical, ChevronDown } from "lucide-react";
 import "./overlay.css";
 import { useVoiceAssistant } from "./hooks/useVoiceAssistant";
 
-type ViewState = "idle" | "expanded" | "recording" | "response" | 'automating' | 'automating' | 'selecting-source';
+type ViewState = "idle" | "expanded" | "recording" | "response" | 'automating' | 'selecting-source';
 
 
 interface Source {
@@ -272,7 +272,7 @@ const OverlayApp = () => {
               <img onClick={toggleShortcuts} src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
             </div>
 
-            {view === "response" || geminiResponse ? (
+            {view === "response" || geminiResponse && view !== "automating" ? (
               <div className="flex flex-col">
                 <span className="font-bold text-lg text-gray-900 shrink-0">
                   🤖 Dee says...
@@ -378,6 +378,8 @@ const OverlayApp = () => {
                 </span>
               </div>
             )}
+
+
      
           </div>
 
@@ -462,6 +464,41 @@ const OverlayApp = () => {
               >
                 Stop
               </button>
+            </div>
+          </div>
+        )}
+
+  
+
+        {/* Automating View */}
+        {view === 'automating' && (
+          <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
+            <div className="h-px w-full bg-gray-200 mb-3"></div>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative w-12 h-3">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce absolute left-0"></div>
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-75 absolute left-4"></div>
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-150 absolute left-8"></div>
+                </div>
+                <div className="flex flex-col">
+                   <span className="font-bold text-gray-900 text-sm">
+                    {automationStatus?.status || "Starting automation..."}
+                   </span>
+                   {automationStatus?.details && (
+                     <span className="text-xs text-gray-500">{automationStatus.details}</span>
+                   )}
+                </div>
+              </div>
+              
+              {automationStatus?.totalSteps ? (
+                <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                  <div 
+                    className="bg-blue-500 h-1.5 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${((automationStatus.step || 0) / automationStatus.totalSteps) * 100}%` }}
+                  ></div>
+                </div>
+              ) : null}
             </div>
           </div>
         )}

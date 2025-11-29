@@ -571,7 +571,7 @@ function getDefaultAcknowledgment(toolName: string): string {
     case "stop_recording":
       return "Got it, stopping the recording.";
     case "emr_assistance":
-      return "Let me help you with that.";
+      return "Sure, I'll help you with auto filling the form.";
     case "open_url":
       return "Opening that for you.";
     case "click_screen":
