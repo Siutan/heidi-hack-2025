@@ -1,16 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
-import { Command, ChevronDown, ChevronUp, Activity, GripVertical } from 'lucide-react';
-import './overlay.css';
+import { useState, useRef, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import { GripVertical, ChevronDown } from "lucide-react";
+import "./overlay.css";
 
-type ViewState = 'idle' | 'expanded' | 'recording' | 'response';
+type ViewState = "idle" | "expanded" | "recording" | "response";
 
 import { useVoiceAssistant } from './hooks/useVoiceAssistant';
 
 const OverlayApp = () => {
-  const [view, setView] = useState<ViewState>('idle');
+  const [view, setView] = useState<ViewState>("idle");
   const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState('');
+  const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -65,8 +66,17 @@ const OverlayApp = () => {
   }, [voiceStatus, isListening]);
 
   const toggleShortcuts = () => {
-    if (view === 'idle') setView('expanded');
-    else if (view === 'expanded') setView('idle');
+    switch (view) {
+      case "recording":
+      case "response":
+        return; // Do nothing during recording or response
+      case "expanded":
+        setView("idle");
+        break;
+      case "idle":
+        setView("expanded");
+        break;
+    }
   };
 
   const startRecording = async () => {
@@ -107,8 +117,27 @@ const OverlayApp = () => {
       //   stopRecording();
       // }, 3000);
 
+      // Auto-stop after 5 seconds
+      recordingTimeoutRef.current = setTimeout(() => {
+        console.log("Auto-stopping recording after 5 seconds");
+        if (
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state === "recording"
+        ) {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+          // Stop all tracks
+          mediaRecorderRef.current.stream
+            .getTracks()
+            .forEach((track) => track.stop());
+        }
+      }, 5000);
     } catch (err) {
-      console.error('Error accessing microphone:', err);
+      console.error("Error accessing microphone:", err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setError(errorMsg);
+      setTranscript("Error: " + errorMsg);
+      setView("response");
     }
   };
 
@@ -121,10 +150,7 @@ const OverlayApp = () => {
     }
   };
 
-  const reset = () => {
-    setView('idle');
-    setTranscript('');
-  };
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Check permission on mount
@@ -168,10 +194,12 @@ const OverlayApp = () => {
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-start p-2">
-      <div className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#C9B4BB] overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}>
-        
+      <div
+        ref={contentRef}
+        className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-[#C9B4BB] overflow-hidden transition-all duration-300 ease-in-out w-full flex flex-col`}
+      >
         {/* Header Section */}
-        <div className="flex items-center justify-between px-4 py-3 h-[68px] shrink-0">
+        <div className="flex items-center justify-between px-2 py-2 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
               <img src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
@@ -221,9 +249,7 @@ const OverlayApp = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {view === 'recording' ? (
-               <div className="flex items-center gap-1 h-8">
-                 {/* Fake waveform animation */}
+            {/* <div className="flex items-center gap-1 h-8">
                  {[...Array(8)].map((_, i) => (
                    <div key={i} className="w-1 bg-rose-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }}></div>
                  ))}
@@ -248,12 +274,16 @@ const OverlayApp = () => {
         </div>
 
         {/* Expanded Content (Shortcuts) - Dropdown Style */}
-        {view === 'expanded' && (
+        {view === "expanded" && (
           <div className="px-2 pb-2 pt-0 animate-in slide-in-from-top-2 duration-200 bg-gray-50/50">
             <div className="h-px w-full bg-gray-200 mb-2"></div>
             <div className="space-y-1">
-              {['Record a session', 'Update a medical record', 'Get previous session notes'].map((shortcut) => (
-                <button 
+              {[
+                "Record a session",
+                "Update a medical record",
+                "Get previous session notes",
+              ].map((shortcut) => (
+                <button
                   key={shortcut}
                   className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-white hover:shadow-sm text-sm text-gray-700 transition-all flex items-center gap-3 group border border-transparent hover:border-gray-100"
                   onClick={() => {
@@ -267,12 +297,55 @@ const OverlayApp = () => {
                   {shortcut}
                 </button>
               ))}
+              <button
+                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-white hover:shadow-sm text-sm text-gray-700 transition-all flex items-center gap-3 group border border-transparent hover:border-gray-100"
+                onClick={async () => {
+                  if (window.electron) {
+                    const result = await window.electron.checkAndOpenApp();
+                    console.log("App check result:", result);
+                  }
+                }}
+              >
+                <div className="w-2 h-2 rounded-full bg-gray-300 group-hover:bg-blue-500 transition-colors"></div>
+                Open Mock EHR
+              </button>
+              <button
+                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-white hover:shadow-sm text-sm text-gray-700 transition-all flex items-center gap-3 group border border-transparent hover:border-gray-100"
+                onClick={() => {
+                  console.log("Voice automation clicked");
+                  startRecording();
+                }}
+              >
+                <div className="w-2 h-2 rounded-full bg-gray-300 group-hover:bg-purple-500 transition-colors"></div>
+                Voice Desktop Automation
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Recording Content */}
+        {view === "recording" && (
+          <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
+            <div className="h-px w-full bg-gray-200 mb-3"></div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  Recording... Speak now!
+                </p>
+              </div>
+              <button
+                onClick={stopRecording}
+                className="px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Stop
+              </button>
             </div>
           </div>
         )}
 
         {/* Response Content */}
-        {view === 'response' && (
+        {view === "response" && (
           <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
              <div className="h-px w-full bg-gray-200 mb-3"></div>
              <p className="text-sm text-gray-700 leading-relaxed">
@@ -285,7 +358,7 @@ const OverlayApp = () => {
   );
 };
 
-const container = document.getElementById('app');
+const container = document.getElementById("app");
 if (container) {
   const root = createRoot(container);
   root.render(<OverlayApp />);

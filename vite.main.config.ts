@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite';
-import { builtinModules } from 'module';
-import commonjs from '@rollup/plugin-commonjs';
+import { defineConfig } from "vite";
+import { builtinModules } from "module";
+import commonjs from "@rollup/plugin-commonjs";
 
 // https://vitejs.dev/config
 export default defineConfig({
@@ -21,11 +21,13 @@ export default defineConfig({
         ...builtinModules,
         ...builtinModules.map((m) => `node:${m}`),
         // Native/complex Node modules that shouldn't be bundled
-        '@google-cloud/speech',
-        'electron',
-        'node-record-lpcm16',
-        'dotenv',
-        'electron-squirrel-startup',
+        "@google-cloud/speech",
+        "electron",
+        "node-record-lpcm16",
+        "dotenv",
+        "electron-squirrel-startup",
+        "sharp",
+        "screenshot-desktop",
       ],
     },
   },

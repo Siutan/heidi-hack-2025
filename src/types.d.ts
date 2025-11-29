@@ -1,4 +1,4 @@
-export { };
+export {};
 
 // Wake word status type
 type WakeWordStatus = 'idle' | 'listening' | 'wake_detected' | 'processing' | 'error';

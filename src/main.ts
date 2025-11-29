@@ -45,7 +45,102 @@ if (started) {
 ipcMain.on("resize-window", (event, width, height) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) {
-    win.setSize(width, height, true);
+    const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
+    const padding = 20;
+    const x = screenWidth - width - padding;
+    const y = padding;
+    win.setBounds({ x, y, width, height }, true);
+  }
+});
+
+ipcMain.handle("check-and-open-app", async () => {
+  return new Promise((resolve) => {
+    const appName = "mock ehr desktop app";
+    // Check if app is running
+    exec(`ps -ax | grep "${appName}" | grep -v grep`, (err, stdout) => {
+      if (stdout) {
+        console.log(`${appName} is already running.`);
+        resolve(true);
+      } else {
+        console.log(`${appName} is not running. Opening...`);
+        exec(`open -a "${appName}"`, (err) => {
+          if (err) {
+            console.error(`Failed to open ${appName}:`, err);
+            resolve(false);
+          } else {
+            console.log(`Opened ${appName}`);
+            resolve(true);
+          }
+        });
+      }
+    });
+  });
+});
+
+// Handle voice command execution
+ipcMain.handle("execute-voice-command", async (_event, command: string) => {
+  try {
+    console.log("Received voice command:", command);
+
+    // Interpret and execute the command using AI + computer.ts
+    const result = await interpretAndExecuteCommand(command);
+
+    return result;
+  } catch (error) {
+    console.error("Error executing voice command:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to execute command",
+    };
+  }
+});
+
+// Handle audio transcription
+ipcMain.handle("transcribe-audio", async (_event, base64Audio: string) => {
+  try {
+    console.log("Received audio for transcription");
+
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error(
+        "GEMINI_API_KEY not found in environment variables. Please add it to your .env file."
+      );
+    }
+
+    // Call Gemini API for transcription
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+    console.log("Sending to Gemini API...");
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: "audio/webm",
+          data: base64Audio,
+        },
+      },
+      "Transcribe this audio to text. Only return the transcribed text, nothing else.",
+    ]);
+
+    const transcript = result.response.text();
+    console.log("Transcription result:", transcript);
+
+    return {
+      success: true,
+      transcript: transcript,
+    };
+  } catch (error) {
+    console.error("Error transcribing audio:", error);
+    console.error(
+      "Error details:",
+      error instanceof Error ? error.message : String(error)
+    );
+    return {
+      success: false,
+      transcript: "",
+      error:
+        error instanceof Error ? error.message : "Failed to transcribe audio",
+    };
   }
 });
 
@@ -184,7 +279,7 @@ const createOverlayWindow = () => {
   const overlayWindow = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
-    x: padding,
+    x: screenWidth - windowWidth - padding,
     y: padding,
     frame: false,
     transparent: true,
