@@ -220,6 +220,8 @@ export class GoogleSpeechService extends EventEmitter {
     if (this.recognizeStream) {
       try {
         this.recognizeStream.end();
+        this.recognizeStream.removeAllListeners();
+        this.recognizeStream.destroy();
       } catch {
         // Ignore errors when ending stream
       }

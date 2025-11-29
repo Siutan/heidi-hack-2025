@@ -36,6 +36,10 @@ export class WakeWordService extends EventEmitter {
   private speechStartTime = 0;
   private maxSpeechDuration = 3000; // Only buffer 3 seconds max for wake word detection
   private silenceTimer: NodeJS.Timeout | null = null;
+  private commandWindowTimer: NodeJS.Timeout | null = null;
+  private processingTimer: NodeJS.Timeout | null = null;
+  private commandWindowDuration = 5000; // 5 second window to start speaking
+  private processingTimeoutDuration = 6000; // 6 seconds to wait for Gemini response
 
   constructor(config: Partial<WakeWordServiceConfig> = {}) {
     super();
@@ -57,12 +61,12 @@ export class WakeWordService extends EventEmitter {
   }
 
   private setupEventHandlers(): void {
-    // Audio capture → VAD + Gemini (when active)
+    // Audio capture → VAD + Gemini (when in command window)
     this.audioCapture.on("data", (chunk: Buffer) => {
       this.vad.process(chunk);
 
-      // If in conversation mode with Gemini, send audio there
-      if (this.status === "wake_detected" && this.geminiLive.connected) {
+      // Send to Gemini during command window AND processing (continuous streaming)
+      if ((this.status === "command_window" || this.status === "processing") && this.geminiLive.connected) {
         this.geminiLive.sendAudio(chunk);
       }
     });
@@ -80,10 +84,27 @@ export class WakeWordService extends EventEmitter {
         this.speechBuffer = [];
         this.speechStartTime = Date.now();
         this.setStatus("listening");
-        
+
         // Start Google Speech stream for wake word detection
         if (!this.googleSpeech.streaming) {
           this.googleSpeech.startStream();
+        }
+      } else if (this.status === "command_window" || this.status === "processing") {
+        console.log("[WakeWordService] 🎤 Command speech started/resumed");
+
+        // If we were "thinking", go back to "listening" because user resumed speaking
+        if (this.status === "processing") {
+          this.setStatus("command_window");
+        }
+
+        // Clear any timeouts since user is speaking
+        if (this.commandWindowTimer) {
+          clearTimeout(this.commandWindowTimer);
+          this.commandWindowTimer = null;
+        }
+        if (this.processingTimer) {
+          clearTimeout(this.processingTimer);
+          this.processingTimer = null;
         }
       }
     });
@@ -111,7 +132,7 @@ export class WakeWordService extends EventEmitter {
     this.vad.on("speechEnd", () => {
       if (this.status === "listening") {
         console.log("[WakeWordService] 🔇 Speech ended");
-        
+
         // Wait a bit for final transcript, then reset if no wake word
         this.silenceTimer = setTimeout(() => {
           if (this.status === "listening") {
@@ -119,6 +140,25 @@ export class WakeWordService extends EventEmitter {
             this.resetToIdle();
           }
         }, 1500);
+      } else if (this.status === "command_window") {
+        console.log("[WakeWordService] 🔇 Command speech ended - waiting for response (but keeping stream open)");
+
+        // Switch to processing state for UI feedback ("Thinking...")
+        // But we continue streaming audio in case user resumes
+        this.setStatus("processing");
+
+        // Start processing timer - wait for Gemini response
+        // If user speaks again, this will be cleared in speechStart
+        if (this.processingTimer) {
+          clearTimeout(this.processingTimer);
+        }
+
+        this.processingTimer = setTimeout(() => {
+          console.log("[WakeWordService] ⏰ Processing timeout - no response from Gemini");
+          if (this.status === "processing") {
+            this.resetToIdle();
+          }
+        }, this.processingTimeoutDuration);
       }
     });
 
@@ -127,7 +167,7 @@ export class WakeWordService extends EventEmitter {
       "transcript",
       (data: { text: string; confidence: number; isFinal: boolean }) => {
         if (this.status !== "listening") return;
-        
+
         const text = data.text.trim();
         if (!text) return;
 
@@ -151,11 +191,25 @@ export class WakeWordService extends EventEmitter {
     // Gemini Live events
     this.geminiLive.on("textResponse", (text: string) => {
       console.log(`[WakeWordService] 🤖 Gemini: "${text}"`);
+
+      // Clear processing timer as we got a response
+      if (this.processingTimer) {
+        clearTimeout(this.processingTimer);
+        this.processingTimer = null;
+      }
+
       this.emit("geminiResponse", { text });
     });
 
     this.geminiLive.on("audioResponse", (audio: Buffer) => {
+      console.log(`[WakeWordService] 🔊 Received audio response (${audio.length} bytes)`);
       this.emit("geminiAudio", { audio });
+    });
+
+    // Handle tool calls from Gemini
+    this.geminiLive.on("toolCall", (toolCall: any) => {
+      console.log(`[WakeWordService] 🔧 Tool called: ${toolCall.name}`);
+      this.handleToolCall(toolCall);
     });
 
     this.geminiLive.on("turnComplete", () => {
@@ -171,7 +225,7 @@ export class WakeWordService extends EventEmitter {
 
     this.geminiLive.on("disconnected", () => {
       console.log("[WakeWordService] Gemini disconnected");
-      if (this.status === "wake_detected") {
+      if (this.status === "command_window" || this.status === "wake_detected") {
         this.resetToIdle();
       }
     });
@@ -181,8 +235,10 @@ export class WakeWordService extends EventEmitter {
     transcript: string,
     confidence: number
   ): Promise<void> {
-    // Stop Google Speech - we don't need it anymore
+    // CRITICAL: Stop Google Speech immediately - we're done with it
+    console.log("[WakeWordService] 🛑 Stopping Google STT");
     this.googleSpeech.stopStream();
+
     if (this.silenceTimer) {
       clearTimeout(this.silenceTimer);
       this.silenceTimer = null;
@@ -191,19 +247,55 @@ export class WakeWordService extends EventEmitter {
     this.setStatus("wake_detected");
     this.emit("wakeDetected", { transcript, confidence });
 
-    // Start Gemini Live session for the conversation
+    // Start Gemini Live session for command processing
     try {
       console.log("[WakeWordService] Starting Gemini Live session...");
       await this.geminiLive.startSession();
 
-      // Send initial context - the user said "Hi Dee" and we should respond
-      // The audio will continue flowing via the audioCapture handler
-      console.log("[WakeWordService] ✓ Ready for conversation with Gemini");
+      // Enter command window state - 5 seconds to speak command
+      this.setStatus("command_window");
+      console.log("[WakeWordService] 🟢 Command window active (5 seconds)");
+
+      // Start 5-second command window timer
+      if (this.commandWindowTimer) {
+        clearTimeout(this.commandWindowTimer);
+      }
+
+      this.commandWindowTimer = setTimeout(() => {
+        console.log("[WakeWordService] ⏰ Command window timeout");
+        if (this.status === "command_window") {
+          this.resetToIdle();
+        }
+      }, this.commandWindowDuration);
+
+      console.log("[WakeWordService] ✓ Ready for command via Gemini Live");
     } catch (error) {
       console.error("[WakeWordService] Failed to start Gemini session:", error);
       this.emit("error", error as Error);
       this.resetToIdle();
     }
+  }
+
+  private handleToolCall(toolCall: { name: string; args: Record<string, any> }): void {
+    console.log(`[WakeWordService] Executing tool: ${toolCall.name}`);
+
+    // Clear timers since we got a command
+    if (this.commandWindowTimer) {
+      clearTimeout(this.commandWindowTimer);
+      this.commandWindowTimer = null;
+    }
+    if (this.processingTimer) {
+      clearTimeout(this.processingTimer);
+      this.processingTimer = null;
+    }
+
+    // Emit the tool call event so the UI/main process can handle it
+    this.emit("toolCall", toolCall);
+
+    // After tool is called, reset to idle to listen for next wake word
+    setTimeout(() => {
+      this.resetToIdle();
+    }, 1000); // Small delay to let any Gemini response finish
   }
 
   private resetToIdle(): void {
@@ -212,6 +304,16 @@ export class WakeWordService extends EventEmitter {
     if (this.silenceTimer) {
       clearTimeout(this.silenceTimer);
       this.silenceTimer = null;
+    }
+
+    if (this.commandWindowTimer) {
+      clearTimeout(this.commandWindowTimer);
+      this.commandWindowTimer = null;
+    }
+
+    if (this.processingTimer) {
+      clearTimeout(this.processingTimer);
+      this.processingTimer = null;
     }
 
     this.googleSpeech.stopStream();
@@ -244,9 +346,9 @@ export class WakeWordService extends EventEmitter {
       console.error("[WakeWordService] ✗ SoX not found!");
       throw new Error(
         "SoX is not installed. Please install it:\n" +
-          "  macOS: brew install sox\n" +
-          "  Ubuntu: sudo apt-get install sox\n" +
-          "  Windows: Download from https://sox.sourceforge.net/"
+        "  macOS: brew install sox\n" +
+        "  Ubuntu: sudo apt-get install sox\n" +
+        "  Windows: Download from https://sox.sourceforge.net/"
       );
     }
     console.log("[WakeWordService] ✓ SoX is installed");
@@ -288,6 +390,16 @@ export class WakeWordService extends EventEmitter {
     if (this.silenceTimer) {
       clearTimeout(this.silenceTimer);
       this.silenceTimer = null;
+    }
+
+    if (this.commandWindowTimer) {
+      clearTimeout(this.commandWindowTimer);
+      this.commandWindowTimer = null;
+    }
+
+    if (this.processingTimer) {
+      clearTimeout(this.processingTimer);
+      this.processingTimer = null;
     }
 
     this.audioCapture.stop();

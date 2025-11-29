@@ -22,12 +22,20 @@ export type CommandEvent = {
   timestamp: number;
 };
 
-export type WakeWordStatus = 
+export type WakeWordStatus =
   | 'idle'           // Waiting for speech
   | 'listening'      // Detected speech, streaming to Google
-  | 'wake_detected'  // Wake word detected, capturing command
+  | 'wake_detected'  // Wake word detected, starting Gemini
+  | 'command_window' // Listening for command via Gemini (5 second window)
   | 'processing'     // Processing command
   | 'error';         // Error state
+
+export type ToolCallEvent = {
+  type: 'tool_call';
+  toolName: string;
+  args: Record<string, any>;
+  timestamp: number;
+};
 
 export type WakeWordServiceConfig = {
   // Wake word variations to detect
@@ -57,9 +65,9 @@ export const DEFAULT_CONFIG: WakeWordServiceConfig = {
     'hi di',
     'hey di',
   ],
-  wakeWordThreshold: 0.6,
+  wakeWordThreshold: 0.35,
   commandTimeout: 10000,  // 10 seconds max for command
-  silenceTimeout: 1500,   // 1.5 seconds of silence ends command
+  silenceTimeout: 2000,   // 2 seconds of silence ends command
   languageCode: 'en-US',
   sampleRateHertz: 16000,
 };

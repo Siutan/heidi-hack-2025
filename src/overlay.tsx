@@ -227,16 +227,47 @@ const OverlayApp = () => {
                   🤖 Dee says...
                 </span>
               </div>
+            ) : voiceStatus === "processing" ? (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce"></div>
+                    <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce delay-75"></div>
+                    <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce delay-150"></div>
+                  </div>
+                  <span className="font-bold text-lg text-purple-600 shrink-0">
+                    Thinking...
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500 ml-7">
+                  Processing your command
+                </span>
+              </div>
+            ) : voiceStatus === "command_window" ? (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                    <div className="absolute inset-0 w-4 h-4 bg-green-500 rounded-full animate-ping opacity-75"></div>
+                  </div>
+                  <span className="font-bold text-lg text-green-600 shrink-0">
+                    Speak your command!
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500 ml-7">
+                  I'm listening... (5 seconds)
+                </span>
+              </div>
             ) : voiceStatus === "wake_detected" ? (
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-lg text-gray-900 shrink-0">
-                    🎉 Listening...
+                    🎉 Wake word detected!
                   </span>
-                  <span className="animate-pulse text-green-500">●</span>
+                  <span className="animate-pulse text-blue-500">●</span>
                 </div>
                 <span className="text-xs text-gray-500">
-                  Speak your command to Dee
+                  Starting Gemini...
                 </span>
               </div>
             ) : view === "recording" ||
