@@ -13,6 +13,7 @@ import * as dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { interpretAndExecuteCommand } from "./services/interpreter-service";
 import { getWakeWordService, destroyWakeWordService } from "./wake";
+import { fillTemplate } from "./services/gemini-tools";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -358,27 +359,7 @@ const createWindow = () => {
   });
 
   ipcMain.handle('rpa:fill-template', async (event, conversation: string, sourceId?: string) => {
-    try {
-      const textToProcess = conversation || generateMockData();
-      await performAutomation(textToProcess, sourceId, (data) => {
-        event.sender.send('automation-update', data);
-      });
-      return 'done';
-    } catch (error: any) {
-      console.error("RPA Error in main process:", error);
-      
-      let message = "An unexpected error occurred during automation.";
-      if (error.name === 'RPAError' || error.name === 'ElementNotFoundError' || error.name === 'NoActionsGeneratedError' || error.name === 'ScreenCaptureError') {
-        message = error.message;
-      } else if (error.message) {
-        message = error.message;
-      }
-
-      // Show error dialog to user
-      dialog.showErrorBox("Automation Failed", message);
-      
-      throw error; // Propagate back to renderer if needed
-    }
+    return await fillTemplate(event.sender, conversation, sourceId);
   });
 };
 
