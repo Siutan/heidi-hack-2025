@@ -5,24 +5,65 @@ import "./overlay.css";
 
 type ViewState = "idle" | "expanded" | "recording" | "response";
 
+import { useVoiceAssistant } from './hooks/useVoiceAssistant';
+
 const OverlayApp = () => {
   const [view, setView] = useState<ViewState>("idle");
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const phrases = [
-    "record a session",
-    "lets fill out a file",
-    "Who is next",
-    "catch me up on the next patient",
-  ];
-  const [activePhraseIndex, setActivePhraseIndex] = useState(0);
-  const [isPhraseVisible, setIsPhraseVisible] = useState(true);
-  const phraseIntervalRef = useRef<number | null>(null);
-  const phraseTimeoutRef = useRef<number | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  // Define the context for the assistant
+  const assistantContext = {
+    isRecording,
+    recorder: {
+      start: async () => {
+        console.log("Assistant starting recording...");
+        // Reuse existing logic or call a function
+        startRecording(); 
+      },
+      stop: async () => {
+        console.log("Assistant stopping recording...");
+        stopRecording();
+      }
+    },
+    ui: {
+      showDetails: (entity: string) => {
+        console.log("Showing details for:", entity);
+        setView('response');
+        setTranscript(`Showing details for ${entity}`);
+      }
+    },
+    userPref: {
+      alwaysConfirm: false
+    }
+  };
+
+  const { startListening: startVoice, status: voiceStatus, transcript: voiceTranscript, isListening } = useVoiceAssistant(assistantContext);
+
+  // Auto-start wake word detection on mount
+  useEffect(() => {
+    console.log('[Overlay] Component mounted, starting wake word detection...');
+    // Small delay to ensure everything is initialized
+    const timer = setTimeout(() => {
+      startVoice();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Update transcript from voice assistant
+  useEffect(() => {
+    if (voiceTranscript) {
+      setTranscript(voiceTranscript);
+    }
+  }, [voiceTranscript]);
+
+  // Log status changes
+  useEffect(() => {
+    console.log('[Overlay] Voice status:', voiceStatus, 'isListening:', isListening);
+  }, [voiceStatus, isListening]);
 
   const toggleShortcuts = () => {
     switch (view) {
@@ -40,92 +81,41 @@ const OverlayApp = () => {
 
   const startRecording = async () => {
     try {
-      setError("");
-      setTranscript("");
-
-      console.log("Requesting microphone access...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log("Microphone access granted");
-
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        console.log("Audio data available:", event.data.size, "bytes");
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        // MediaRecorder typically outputs webm/ogg, not wav
-        const mimeType = mediaRecorder.mimeType || "audio/webm";
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: mimeType,
-        });
-        console.log(
-          "Recording finished",
-          audioBlob.size,
-          "bytes, MIME:",
-          mimeType
-        );
-        setView("response");
-
-        if (audioBlob.size === 0) {
-          setError("No audio data recorded");
-          setTranscript("Error: No audio data recorded");
+      if (window.electron) {
+        const granted = await window.electron.requestMicPermission();
+        if (!granted) {
+          console.error("Microphone permission denied");
           return;
         }
+      }
 
-        try {
-          // Convert blob to base64
-          const reader = new FileReader();
-          const base64Audio = await new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => {
-              const base64 = (reader.result as string).split(",")[1];
-              resolve(base64);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(audioBlob);
-          });
-
-          console.log(
-            "Sending audio for transcription...",
-            base64Audio.length,
-            "chars"
-          );
-          // Transcribe audio
-          if (window.electron) {
-            const result = await window.electron.transcribeAudio(base64Audio);
-            console.log("Transcription result:", result);
-
-            if (result.success) {
-              setTranscript(result.transcript);
-              console.log("Transcript:", result.transcript);
-
-              // Execute the voice command
-              const cmdResult = await window.electron.executeVoiceCommand(
-                result.transcript
-              );
-              console.log("Command result:", cmdResult);
-            } else {
-              console.error("Transcription failed:", result.error);
-              setError(result.error || "Transcription failed");
-              setTranscript(
-                "Error: " + (result.error || "Transcription failed")
-              );
-            }
-          }
-        } catch (error) {
-          console.error("Error transcribing audio:", error);
-          setError(String(error));
-          setTranscript("Error: " + String(error));
-        }
+      const savedDeviceId = localStorage.getItem('selectedMicId');
+      const constraints: MediaStreamConstraints = {
+        audio: savedDeviceId ? { deviceId: { exact: savedDeviceId } } : true
       };
 
-      mediaRecorder.start();
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      chunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        console.log('Recording finished', blob);
+      };
+
+      mediaRecorderRef.current.start();
       setIsRecording(true);
-      setView("recording");
-      console.log("Recording started");
+      setView('recording');
+      
+      // Simulate recording duration for the "Record a session" button click
+      // If triggered by voice, we might want manual stop
+      // setTimeout(() => {
+      //   stopRecording();
+      // }, 3000);
 
       // Auto-stop after 5 seconds
       recordingTimeoutRef.current = setTimeout(() => {
@@ -152,71 +142,55 @@ const OverlayApp = () => {
   };
 
   const stopRecording = () => {
-    if (recordingTimeoutRef.current) {
-      clearTimeout(recordingTimeoutRef.current);
-      recordingTimeoutRef.current = null;
-    }
-
-    if (mediaRecorderRef.current && isRecording) {
-      console.log("Stopping recording...");
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      // Stop all tracks
-      mediaRecorderRef.current.stream
-        .getTracks()
-        .forEach((track) => track.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setView('response'); // Go to response after recording
     }
   };
 
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!contentRef.current) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const height = entry.contentRect.height;
-        // Add some padding to the height to account for shadows/borders if needed,
-        // but the contentRect should be the size of the element.
-        // The outer div has p-2 (8px), so we might need to add that if we are measuring the inner div.
-        // Let's measure the outer container or add the padding.
-        // The structure is:
-        // <div className="w-full h-full flex flex-col items-center justify-start p-2"> (Outer)
-        //   <div className="bg-white..." ref={contentRef}> (Inner)
-        // So if we measure Inner, we need to add 16px (p-2 * 2) to the height for the window size.
-
-        if (window.electron) {
-          // Add padding for the outer container (p-2 = 16px) plus extra space for the shadow-2xl.
-          // shadow-2xl is quite large (~50px spread/blur), so we need significant buffer to avoid clipping.
-          window.electron.resizeWindow(document.body.offsetWidth, height + 60);
+    // Check permission on mount
+    if (window.electron) {
+      window.electron.requestMicPermission().then((granted) => {
+        if (!granted) {
+          console.warn("Microphone permission denied on startup");
+        } else {
+          console.log("Microphone permission granted on startup");
         }
-      }
-    });
-
-    resizeObserver.observe(contentRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
+      });
+    }
   }, []);
 
   useEffect(() => {
-    const DISPLAY_MS = 3000;
-    const TRANSITION_MS = 500;
-    phraseIntervalRef.current = window.setInterval(() => {
-      setIsPhraseVisible(false);
-      phraseTimeoutRef.current = window.setTimeout(() => {
-        setActivePhraseIndex((prev) => (prev + 1) % phrases.length);
-        setIsPhraseVisible(true);
-      }, TRANSITION_MS);
-    }, DISPLAY_MS);
-    return () => {
-      if (phraseIntervalRef.current)
-        window.clearInterval(phraseIntervalRef.current);
-      if (phraseTimeoutRef.current)
-        window.clearTimeout(phraseTimeoutRef.current);
-    };
-  }, []);
+    // Resize window based on view
+    const height = view === 'expanded' ? 600 : 300; // Approximate heights
+    // We need to get the current width to maintain it, or just pass the current width if we know it.
+    // Since we are full width, we might need to be careful. 
+    // Actually, setSize takes (width, height). 
+    // If we want to keep the width dynamic, we should probably ask the main process to only change height, 
+    // or pass the current outer width.
+    // For now, let's assume a fixed width for the content or try to get it.
+    // Better yet, let's send a message to resize only height or handle it in main.
+    // But the API we made is (width, height).
+    // Let's use document.body.scrollWidth or similar.
+    
+    // Actually, the window width is set in main.ts based on screen size. 
+    // If we send a fixed width here, it might resize the window to something wrong.
+    // Let's update the preload/main to accept just height or optional width.
+    
+    // For now, let's just use a hardcoded width that matches the design or try to read it.
+    // But wait, the user asked for full width.
+    // If I pass a specific width, I might break the full width.
+    
+    // Let's update the IPC to allow passing null for width to keep current width.
+    if (window.electron) {
+       window.electron.resizeWindow(document.body.offsetWidth, height);
+    }
+  }, [view]);
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-start p-2">
@@ -230,32 +204,48 @@ const OverlayApp = () => {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
               <img src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
             </div>
-
-            <div
-              className="flex flex-col  w-[300px] cursor-pointer"
-              onClick={toggleShortcuts}
-            >
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-lg text-gray-900 shrink-0">
-                  “Hi Dee...”
-                </span>
-                <span
-                  className={`text-gray-400 text-md shrink-0 transition-all duration-500 ease-in-out ${isPhraseVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
-                >
-                  {phrases[activePhraseIndex]}
-                </span>
+            
+            {view === 'response' ? (
+              <div className="flex flex-col">
+                <span className="font-bold text-lg text-gray-900 shrink-0">From Dee</span>
               </div>
-              <div className="flex items-end gap-1">
-                <span className="text-xs text-gray-500">
-                  Run Heidi shortcuts using your voice
-                </span>
-                <div
-                  className={`transition-transform duration-300 ${view === "expanded" ? "rotate-180" : ""}`}
-                >
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
+            ) : view === 'recording' || voiceStatus === 'listening' || voiceStatus === 'wake_detected' ? (
+              <div className="flex items-center overflow-hidden whitespace-nowrap max-w-[300px]">
+                 {transcript ? (
+                   <span className="text-lg text-gray-900 shrink-0">
+                     {transcript.split(/(\bhi dee\b|\bheidi\b)/i).map((part, i) => 
+                       /(\bhi dee\b|\bheidi\b)/i.test(part) ? 
+                         <span key={i} className="font-bold text-rose-500">{part}</span> : 
+                         <span key={i}>{part}</span>
+                     )}
+                   </span>
+                 ) : (
+                   <span className="font-bold text-lg text-gray-900 shrink-0">
+                     {voiceStatus === 'wake_detected' ? '🎉 Wake word detected!' : 'Listening...'}
+                   </span>
+                 )}
+              </div>
+            ) : isListening ? (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-lg text-gray-900 shrink-0">Say "Hi Dee"</span>
+                  <span className="animate-pulse text-green-500">●</span>
                 </div>
+                <span className="text-xs text-gray-500">Status: {voiceStatus} | Waiting for wake word...</span>
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col cursor-pointer" onClick={() => {
+                // For now, clicking this triggers the voice assistant simulation
+                console.log('[Overlay] Manual start clicked');
+                startVoice();
+              }}>
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-lg text-gray-900 shrink-0">"Hi Dee..."</span>
+                  <span className="text-gray-400 text-md shrink-0">Record a session</span>
+                </div>
+                <span className="text-xs text-gray-500">Status: {voiceStatus} | Click to start listening</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -263,7 +253,19 @@ const OverlayApp = () => {
                  {[...Array(8)].map((_, i) => (
                    <div key={i} className="w-1 bg-rose-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }}></div>
                  ))}
-               </div> */}
+               </div>
+            ) : view === 'response' ? (
+              <div className="text-xs text-gray-500 cursor-pointer hover:text-gray-700" onClick={reset}>Close</div>
+            ) : (
+              <button 
+                onClick={toggleShortcuts}
+                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0 bg-gray-100 px-3 py-1.5 rounded-lg"
+              >
+                View Shortcuts
+                {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            )}
+            
             {/* Drag Handle */}
             <div className="drag-handle p-1 hover:bg-gray-100 rounded-md transition-colors cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
               <GripVertical className="w-5 h-5" />
@@ -286,7 +288,9 @@ const OverlayApp = () => {
                   className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-white hover:shadow-sm text-sm text-gray-700 transition-all flex items-center gap-3 group border border-transparent hover:border-gray-100"
                   onClick={() => {
                     console.log(`Clicked ${shortcut}`);
-                    startRecording();
+                    // Simulate voice command for this shortcut
+                    // In reality, this would just run the action directly
+                    if (shortcut === 'Record a session') startRecording();
                   }}
                 >
                   <div className="w-2 h-2 rounded-full bg-gray-300 group-hover:bg-rose-500 transition-colors"></div>
@@ -343,39 +347,10 @@ const OverlayApp = () => {
         {/* Response Content */}
         {view === "response" && (
           <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
-            <div className="h-px w-full bg-gray-200 mb-3"></div>
-            {error ? (
-              <div>
-                <p className="text-xs text-red-500 mb-2">Error:</p>
-                <p className="text-sm text-red-600 leading-relaxed">{error}</p>
-                <button
-                  onClick={() => setView("idle")}
-                  className="mt-2 text-xs text-gray-500 hover:text-gray-700"
-                >
-                  ← Back
-                </button>
-              </div>
-            ) : transcript ? (
-              <div>
-                <p className="text-xs text-gray-500 mb-2">Transcript:</p>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  "{transcript}"
-                </p>
-                <p className="text-xs text-green-600 mt-2">
-                  ✓ Command executed
-                </p>
-                <button
-                  onClick={() => setView("idle")}
-                  className="mt-2 text-xs text-gray-500 hover:text-gray-700"
-                >
-                  ← Back
-                </button>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-700 leading-relaxed">
-                Processing your recording...
-              </p>
-            )}
+             <div className="h-px w-full bg-gray-200 mb-3"></div>
+             <p className="text-sm text-gray-700 leading-relaxed">
+               {transcript || "Yes of course! Your Session has started. I will record the transcript... Just let me know when you want to end it."}
+             </p>
           </div>
         )}
       </div>

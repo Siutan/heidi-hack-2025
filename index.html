@@ -3,11 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <title>Hello World!</title>
-
   </head>
   <body>
     <h1>💖 Hello World!</h1>
     <p>Welcome to your Electron application.</p>
+    <div
+      id="transcript"
+      style="
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        min-height: 50px;
+      "
+    >
+      Waiting for transcript...
+    </div>
+
+    <div style="margin-top: 20px">
+      <label for="mic-select">Microphone:</label>
+      <select id="mic-select" style="margin-left: 10px; padding: 5px"></select>
+    </div>
+
+    <div style="margin-top: 20px">
+      <canvas
+        id="audio-visualizer"
+        width="500"
+        height="100"
+        style="background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px"
+      ></canvas>
+    </div>
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>
