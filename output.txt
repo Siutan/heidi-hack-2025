@@ -19,8 +19,20 @@
 ✔ Target main_window
 ❯ Target overlay_window
 Port 5173 is in use, trying another one...
-[?25h›   ➜  Local:   http://localhost:5174/  
+›   ➜  Local:   http://localhost:5174/  
 › ➜  Network: use --host to expose
 ✔ Target overlay_window
 ✔ Launched Vite dev servers for renderer process code
 ❯ Building main process and preload bundles...
+❯ Building src/main.ts target
+❯ Building src/preload.ts target
+2:28:57 pm [@electron-forge/plugin-vite] target built src/preload.ts
+✔ Building src/preload.ts target
+2:28:57 pm [@electron-forge/plugin-vite] target built src/main.ts
+✔ Building src/main.ts target
+✔ Built main process and preload bundles
+✔ [plugin-vite] Preparing Vite bundles
+✔ Running preStart hook
+✔ Launched Electron app. Type rs in terminal to restart main process.
+[?25h
+[?25h

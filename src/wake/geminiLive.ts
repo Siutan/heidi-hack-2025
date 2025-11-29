@@ -130,6 +130,7 @@ export class GeminiLiveService extends EventEmitter {
             this.emit("connected");
           },
           onmessage: (message: LiveServerMessage) => {
+            console.log(message);
             this.handleMessage(message);
           },
           onerror: (error: ErrorEvent) => {
