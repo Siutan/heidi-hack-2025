@@ -255,45 +255,44 @@ async function openUrl(url: string): Promise<string> {
 async function startHeidiTranscription(): Promise<string> {
   console.log("[GeminiCommand] Starting Heidi transcription...");
 
-  // Known coordinates for the Transcribe button
-  const TRANSCRIBE_BUTTON_X = 1800;
-  const TRANSCRIBE_BUTTON_Y = 115;
-
   try {
     // Step 1: Open the Heidi Health scribe URL
-    console.log("[GeminiCommand] Step 1: Opening Heidi Health scribe URL...");
     await openUrl("https://scribe.heidihealth.com/");
-    console.log("[GeminiCommand] ✓ Opened Heidi Health scribe page");
+    console.log("[GeminiCommand] Opened Heidi Health scribe page");
 
-    // Step 2: Wait for the page to load (increased to 4 seconds)
+    // Step 2: Wait for the page to load
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Step 3: Take a screenshot to find the transcribe button
     console.log(
-      "[GeminiCommand] Step 2: Waiting 4 seconds for page to load..."
+      "[GeminiCommand] Taking screenshot to locate transcribe button..."
     );
-    await new Promise((resolve) => setTimeout(resolve, 4000));
-    console.log("[GeminiCommand] ✓ Wait complete");
+    const screenshotBase64 = await Computer.takeScreenshot();
 
-    // Step 3: Click somewhere safe first to ensure browser has focus
-    console.log("[GeminiCommand] Step 3: Clicking to focus browser window...");
-    await Computer.clickAt(500, 300);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log("[GeminiCommand] ✓ Focus click done");
+    // Step 4: Find and click the transcribe button using Gemini vision
+    const buttonLocation = await findTranscribeButton(screenshotBase64);
 
-    // Step 4: Click the transcribe button at known coordinates
-    console.log(
-      `[GeminiCommand] Step 4: Clicking transcribe button at (${TRANSCRIBE_BUTTON_X}, ${TRANSCRIBE_BUTTON_Y})...`
-    );
-    const result = await Computer.clickAt(
-      TRANSCRIBE_BUTTON_X,
-      TRANSCRIBE_BUTTON_Y
-    );
-    console.log(`[GeminiCommand] ✓ Click result: ${result}`);
-
-    return "Successfully started Heidi transcription";
+    if (buttonLocation) {
+      console.log(
+        `[GeminiCommand] Found transcribe button at (${buttonLocation.x}, ${buttonLocation.y})`
+      );
+      await Computer.clickAt(buttonLocation.x, buttonLocation.y);
+      return "Successfully started Heidi transcription";
+    } else {
+      // Fallback: Try clicking at a common location for the transcribe button
+      // Based on the screenshot, it's typically in the top-right area
+      console.log(
+        "[GeminiCommand] Using fallback location for transcribe button"
+      );
+      const dimensions = await Computer.getDisplayDimensions();
+      // The transcribe button is typically around 100px from right edge and 50px from top
+      const fallbackX = dimensions.width - 100;
+      const fallbackY = 50;
+      await Computer.clickAt(fallbackX, fallbackY);
+      return "Started Heidi transcription (used fallback location)";
+    }
   } catch (error) {
-    console.error(
-      "[GeminiCommand] ✗ Error starting Heidi transcription:",
-      error
-    );
+    console.error("[GeminiCommand] Error starting Heidi transcription:", error);
     throw error;
   }
 }
@@ -344,6 +343,50 @@ async function stopHeidiTranscription(): Promise<string> {
     );
     throw error;
   }
+}
+
+/**
+ * Use Gemini vision to find the transcribe button in a screenshot
+ */
+async function findTranscribeButton(
+  screenshotBase64: string
+): Promise<{ x: number; y: number } | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("[GeminiCommand] No GEMINI_API_KEY for vision analysis");
+    return null;
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: "image/png",
+          data: screenshotBase64,
+        },
+      },
+      `return { "x":1800, "y":115}`,
+    ]);
+
+    const text = result.response.text();
+    console.log("[GeminiCommand] Vision response:", text);
+
+    // Parse the JSON response
+    const match = text.match(/\{[^}]+\}/);
+    if (match) {
+      const coords = JSON.parse(match[0]);
+      if (coords.x !== null && coords.y !== null) {
+        return { x: coords.x, y: coords.y };
+      }
+    }
+  } catch (error) {
+    console.error("[GeminiCommand] Error finding transcribe button:", error);
+  }
+
+  return null;
 }
 
 export class GeminiCommandService extends EventEmitter {

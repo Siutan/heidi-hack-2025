@@ -90,6 +90,11 @@ contextBridge.exposeInMainWorld("electron", {
   // Start Heidi transcription (opens browser and clicks transcribe button)
   startHeidiTranscription: () =>
     ipcRenderer.invoke("start-heidi-transcription"),
+  onPromptSelectSource: (callback: (data: { conversation: string; sourceId?: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
+    ipcRenderer.on('rpa:prompt-select-source', listener);
+    return () => ipcRenderer.removeListener('rpa:prompt-select-source', listener);
+  },
 
   // Tool call listener
   onToolCall: (

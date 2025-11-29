@@ -253,6 +253,13 @@ async function initializeWakeWordService() {
       (data: { name: string; args: Record<string, unknown> }) => {
         console.log("[Main] 🔧 Tool call received:", data.name, data.args);
         broadcastToRenderers("tool-call", data);
+        if (data.name === "emr_assistance") {
+          console.log("[Main] Prompting user to select source for emr_assistance...");
+          broadcastToRenderers("rpa:prompt-select-source", {
+            conversation: data.args.conversation,
+            sourceId: data.args.sourceId
+          });
+        }
       }
     );
 

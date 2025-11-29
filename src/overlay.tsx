@@ -20,6 +20,7 @@ const OverlayApp = () => {
   const [error, setError] = useState("");
   const [sources, setSources] = useState<Source[]>([]);
   const [automationStatus, setAutomationStatus] = useState<{ status: string; step?: number; totalSteps?: number; details?: string } | null>(null);
+  const [pendingConversation, setPendingConversation] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -202,7 +203,9 @@ const OverlayApp = () => {
   const handleSourceSelected = async (sourceId: string) => {
     setView('automating');
     try {
-      await (window as any).electron.fillTemplate(transcript, sourceId);
+      const textToProcess = pendingConversation || transcript;
+      await (window as any).electron.fillTemplate(textToProcess, sourceId);
+      setPendingConversation(null);
     } catch (e: any) {
       console.error(e);
       alert("Automation failed. Please check the error dialog.");
@@ -242,6 +245,16 @@ const OverlayApp = () => {
       window.electron.onAutomationUpdate((_event, data) => {
         console.log("Automation update:", data);
         setAutomationStatus(data);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if ((window as any).electron && (window as any).electron.onPromptSelectSource) {
+      (window as any).electron.onPromptSelectSource((data: any) => {
+        console.log("Received prompt to select source", data);
+        setPendingConversation(data.conversation);
+        handleStartAutomation();
       });
     }
   }, []);

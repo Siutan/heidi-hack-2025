@@ -3,6 +3,7 @@ export interface IElectronAPI {
   fillTemplate: (conversation?: string, sourceId?: string) => Promise<void>;
   getSources: () => Promise<{ id: string; name: string; thumbnail: string }[]>;
   onAutomationUpdate: (callback: (event: any, data: { status: string; step?: number; totalSteps?: number; details?: string }) => void) => void;
+  onPromptSelectSource: (callback: (data: { conversation: string; sourceId?: string }) => void) => void;
 }
 
 declare global {
