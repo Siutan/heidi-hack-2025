@@ -63,4 +63,9 @@ contextBridge.exposeInMainWorld('electron', {
   fillTemplate: (conversation?: string, sourceId?: string) => ipcRenderer.invoke('rpa:fill-template', conversation, sourceId),
   getSources: () => ipcRenderer.invoke('get-sources'),
   onAutomationUpdate: (callback: (event: any, data: any) => void) => ipcRenderer.on('automation-update', callback),
+  onPromptSelectSource: (callback: (data: { conversation: string; sourceId?: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
+    ipcRenderer.on('rpa:prompt-select-source', listener);
+    return () => ipcRenderer.removeListener('rpa:prompt-select-source', listener);
+  },
 });

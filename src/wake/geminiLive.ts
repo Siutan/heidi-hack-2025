@@ -14,6 +14,7 @@ import {
   FunctionDeclaration,
 } from "@google/genai";
 
+
 export interface ToolCall {
   name: string;
   args: Record<string, any>;
@@ -37,6 +38,20 @@ const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: "emr_assistance",
     description: "Provide assistance with EMR (Electronic Medical Records), patient records, medical documentation, or any healthcare-related queries. Use this for questions about patient information, medical history, or record management.",
+    parameters: {
+      type: "OBJECT" as any,
+      properties: {
+        conversation: {
+          type: "STRING" as any,
+          description: "The conversation text or medical notes to be processed into the EMR.",
+        },
+        sourceId: {
+          type: "STRING" as any,
+          description: "Optional ID of the source window or application to target for automation.",
+        },
+      },
+      required: ["conversation"],
+    },
   },
 ];
 
@@ -234,12 +249,19 @@ export class GeminiLiveService extends EventEmitter {
               args: part.functionCall.args || {},
             };
             console.log(`[GeminiLive] 🔧 Tool call: ${toolCall.name}`, toolCall.args);
-            this.emit("toolCall", toolCall);
+            
+            // Execute tool locally
+            if (toolCall.name === 'emr_assistance') {
+                  this.emit("textResponse", part.text);
+                  console.log("[GeminiLive] Executing emr_assistance...");
+                  this.emit("toolCall", toolCall);
+                  this.endSession();
+            }
+
           }
         }
       }
 
-      // Check if turn is complete
       if (content.turnComplete) {
         console.log("[GeminiLive] ✓ Turn complete");
         this.emit("turnComplete");

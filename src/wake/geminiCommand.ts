@@ -258,7 +258,7 @@ function getDefaultAcknowledgment(toolName: string): string {
     case "stop_recording":
       return "Got it, stopping the recording.";
     case "emr_assistance":
-      return "Let me help you with that.";
+      return "Please select the window first.";
     default:
       return "I'm not sure what you'd like me to do. Could you try again?";
   }

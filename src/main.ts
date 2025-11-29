@@ -245,6 +245,19 @@ async function initializeWakeWordService() {
       broadcastToRenderers("wake-word-error", error.message);
     });
 
+    service.on("toolCall", (data) => {
+      console.log("[Main] 🔧 Tool call:", data.name, data.args);
+      broadcastToRenderers("tool-call", data);
+
+      if (data.name === "emr_assistance") {
+        console.log("[Main] Prompting user to select source for emr_assistance...");
+        broadcastToRenderers("rpa:prompt-select-source", {
+          conversation: data.args.conversation,
+          sourceId: data.args.sourceId
+        });
+      }
+    });
+
     await service.initialize();
     wakeWordInitialized = true;
     console.log("[Main] ✓ Wake word service initialized successfully");
