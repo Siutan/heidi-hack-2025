@@ -1,156 +1,165 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { inferIntent } from '../voice/nlu';
 import { decide } from '../voice/policy';
 import { runDecision } from '../voice/executor';
 import { ExecContext } from '../voice/types';
 
-// Extend Window interface for webkitSpeechRecognition
-declare global {
-  interface Window {
-    webkitSpeechRecognition: {
-      new(): SpeechRecognition;
-    };
-  }
-}
+type VoiceStatus = 'idle' | 'listening' | 'wake_detected' | 'processing' | 'executing' | 'error';
 
 export function useVoiceAssistant(context: ExecContext) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [status, setStatus] = useState<'idle' | 'listening' | 'processing' | 'executing'>('idle');
+  const [status, setStatus] = useState<VoiceStatus>('idle');
+  const [error, setError] = useState<string | null>(null);
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const [isWakeWordDetected, setIsWakeWordDetected] = useState(false);
-
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window) {
-      const recognition = new window.webkitSpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-
-        const currentTranscript = finalTranscript || interimTranscript;
-        setTranscript(currentTranscript);
-
-        if (window.electron) {
-          window.electron.sendTranscript(currentTranscript);
-        }
-
-        const lowerTranscript = currentTranscript.toLowerCase().trim();
-
-        // Wake Word Logic
-        if (!isWakeWordDetected) {
-          if (lowerTranscript.includes('hi dee') || lowerTranscript.includes('heidi')) {
-            setIsWakeWordDetected(true);
-            setStatus('listening');
-            // Do not clear transcript so user can see "Hi Dee..."
-            // Optionally play a sound or give feedback
-          }
-        } else {
-          // Command Capture Logic
-          // If we have a final result, process it
-          if (finalTranscript) {
-            // Basic debounce/silence detection could go here
-            processUtterance(finalTranscript);
-            setIsWakeWordDetected(false); // Reset after command
-          }
-        }
-      };
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error', event.error);
-        if (event.error === 'not-allowed') {
-          setIsListening(false);
-          setStatus('idle');
-        }
-      };
-
-      recognition.onend = () => {
-        // Auto-restart if we are supposed to be listening
-        if (isListening) {
-          try {
-            recognition.start();
-          } catch (e) {
-            // Ignore if already started
-          }
-        }
-      };
-
-      recognitionRef.current = recognition;
-    } else {
-      console.error('Web Speech API not supported');
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, [isListening, isWakeWordDetected]);
-
-  const startListening = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        setStatus('idle'); // Waiting for wake word
-      } catch (e) {
-        console.error("Error starting recognition:", e);
-      }
-    }
-  };
-
-  const stopListening = async () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-      setStatus('idle');
-    }
-  };
-
-  const processUtterance = async (text: string) => {
-    console.log("Processing:", text);
+  // Process a command through the NLU pipeline
+  const processCommand = useCallback(async (command: string) => {
+    console.log("Processing command:", command);
     setStatus('processing');
-    const candidates = await inferIntent(text);
-    if (candidates.length === 0) {
-      setStatus('idle'); // Keep listening?
+    
+    try {
+      const candidates = await inferIntent(command);
+      if (candidates.length === 0) {
+        console.log("No intent matched");
+        setStatus('idle');
+        return;
+      }
+
+      const topCandidate = candidates[0];
+      const decision = decide(topCandidate, context);
+
+      if (decision.allow) {
+        if (decision.needsConfirm) {
+          console.log("Needs confirmation:", topCandidate.tool);
+          // TODO: Implement confirmation UI
+        }
+
+        setStatus('executing');
+        await runDecision(topCandidate, context);
+        setStatus('idle');
+      } else {
+        console.warn("Action blocked:", decision.reason);
+        setStatus('idle');
+      }
+    } catch (err) {
+      console.error("Error processing command:", err);
+      setStatus('error');
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  }, [context]);
+
+  // Set up wake word event listeners
+  useEffect(() => {
+    if (!window.electron?.wakeWord) {
+      console.error('Wake word API not available');
       return;
     }
 
-    const topCandidate = candidates[0];
-    const decision = decide(topCandidate, context);
+    const { wakeWord } = window.electron;
 
-    if (decision.allow) {
-      if (decision.needsConfirm) {
-        console.log("Needs confirmation:", topCandidate.tool);
+    // Listen for status changes
+    const unsubStatus = wakeWord.onStatusChange((newStatus) => {
+      console.log('Wake word status:', newStatus);
+      setStatus(newStatus as VoiceStatus);
+      
+      if (newStatus === 'idle' || newStatus === 'listening') {
+        // Clear transcript when returning to listening state
+        // Actually, keep it for a moment so user can see what was said
+      }
+    });
+
+    // Listen for wake word detection
+    const unsubWake = wakeWord.onWakeDetected((data) => {
+      console.log('Wake word detected:', data);
+      setTranscript(data.transcript);
+    });
+
+    // Listen for transcript updates (real-time)
+    const unsubTranscript = wakeWord.onTranscript((data) => {
+      setTranscript(data.text);
+    });
+
+    // Listen for command capture
+    const unsubCommand = wakeWord.onCommandCaptured((data) => {
+      console.log('Command captured:', data);
+      setTranscript(data.fullTranscript);
+      processCommand(data.command);
+    });
+
+    // Listen for errors
+    const unsubError = wakeWord.onError((errorMsg) => {
+      console.error('Wake word error:', errorMsg);
+      setError(errorMsg);
+      setStatus('error');
+    });
+
+    // Cleanup
+    return () => {
+      unsubStatus();
+      unsubWake();
+      unsubTranscript();
+      unsubCommand();
+      unsubError();
+    };
+  }, [processCommand]);
+
+  // Start listening
+  const startListening = useCallback(async () => {
+    console.log('[useVoiceAssistant] startListening called');
+    
+    if (!window.electron?.wakeWord) {
+      console.error('[useVoiceAssistant] Wake word API not available!');
+      console.log('[useVoiceAssistant] window.electron:', window.electron);
+      return;
+    }
+
+    try {
+      // First request mic permission
+      console.log('[useVoiceAssistant] Requesting mic permission...');
+      const granted = await window.electron.requestMicPermission();
+      console.log('[useVoiceAssistant] Mic permission:', granted ? 'granted' : 'denied');
+      
+      if (!granted) {
+        setError('Microphone permission denied');
+        setStatus('error');
+        return;
       }
 
-      setStatus('executing');
-      await runDecision(topCandidate, context);
-      setStatus('idle');
-    } else {
-      console.warn("Action blocked:", decision.reason);
-      setStatus('idle');
+      console.log('[useVoiceAssistant] Starting wake word service...');
+      await window.electron.wakeWord.start();
+      console.log('[useVoiceAssistant] Wake word service started!');
+      setIsListening(true);
+      setError(null);
+    } catch (err) {
+      console.error('[useVoiceAssistant] Failed to start wake word service:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start');
+      setStatus('error');
     }
-  };
+  }, []);
+
+  // Stop listening
+  const stopListening = useCallback(async () => {
+    if (!window.electron?.wakeWord) {
+      return;
+    }
+
+    try {
+      await window.electron.wakeWord.stop();
+      setIsListening(false);
+      setStatus('idle');
+      setTranscript('');
+    } catch (err) {
+      console.error('Failed to stop wake word service:', err);
+    }
+  }, []);
 
   return {
     isListening,
     transcript,
     status,
+    error,
     startListening,
     stopListening,
-    processUtterance // Exposed for manual testing
+    processCommand, // Exposed for manual testing
   };
 }

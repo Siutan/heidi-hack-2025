@@ -40,7 +40,29 @@ const OverlayApp = () => {
     }
   };
 
-  const { startListening: startVoice, status: voiceStatus } = useVoiceAssistant(assistantContext);
+  const { startListening: startVoice, status: voiceStatus, transcript: voiceTranscript, isListening } = useVoiceAssistant(assistantContext);
+
+  // Auto-start wake word detection on mount
+  useEffect(() => {
+    console.log('[Overlay] Component mounted, starting wake word detection...');
+    // Small delay to ensure everything is initialized
+    const timer = setTimeout(() => {
+      startVoice();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Update transcript from voice assistant
+  useEffect(() => {
+    if (voiceTranscript) {
+      setTranscript(voiceTranscript);
+    }
+  }, [voiceTranscript]);
+
+  // Log status changes
+  useEffect(() => {
+    console.log('[Overlay] Voice status:', voiceStatus, 'isListening:', isListening);
+  }, [voiceStatus, isListening]);
 
   const toggleShortcuts = () => {
     if (view === 'idle') setView('expanded');
@@ -159,7 +181,7 @@ const OverlayApp = () => {
               <div className="flex flex-col">
                 <span className="font-bold text-lg text-gray-900 shrink-0">From Dee</span>
               </div>
-            ) : view === 'recording' || voiceStatus === 'listening' ? (
+            ) : view === 'recording' || voiceStatus === 'listening' || voiceStatus === 'wake_detected' ? (
               <div className="flex items-center overflow-hidden whitespace-nowrap max-w-[300px]">
                  {transcript ? (
                    <span className="text-lg text-gray-900 shrink-0">
@@ -170,19 +192,30 @@ const OverlayApp = () => {
                      )}
                    </span>
                  ) : (
-                   <span className="font-bold text-lg text-gray-900 shrink-0">Listening...</span>
+                   <span className="font-bold text-lg text-gray-900 shrink-0">
+                     {voiceStatus === 'wake_detected' ? '🎉 Wake word detected!' : 'Listening...'}
+                   </span>
                  )}
+              </div>
+            ) : isListening ? (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-lg text-gray-900 shrink-0">Say "Hi Dee"</span>
+                  <span className="animate-pulse text-green-500">●</span>
+                </div>
+                <span className="text-xs text-gray-500">Status: {voiceStatus} | Waiting for wake word...</span>
               </div>
             ) : (
               <div className="flex flex-col cursor-pointer" onClick={() => {
                 // For now, clicking this triggers the voice assistant simulation
+                console.log('[Overlay] Manual start clicked');
                 startVoice();
               }}>
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-lg text-gray-900 shrink-0">“Hi Dee...”</span>
+                  <span className="font-bold text-lg text-gray-900 shrink-0">"Hi Dee..."</span>
                   <span className="text-gray-400 text-md shrink-0">Record a session</span>
                 </div>
-                <span className="text-xs text-gray-500">Run Heidi shortcuts using your voice</span>
+                <span className="text-xs text-gray-500">Status: {voiceStatus} | Click to start listening</span>
               </div>
             )}
           </div>

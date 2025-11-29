@@ -1,12 +1,33 @@
 export { };
 
+// Wake word status type
+type WakeWordStatus = 'idle' | 'listening' | 'wake_detected' | 'processing' | 'error';
+
 declare global {
   interface Window {
     electron: {
+      // Window management
       resizeWindow: (width: number, height: number) => void;
+      
+      // Legacy transcript
       sendTranscript: (text: string) => void;
       onTranscriptUpdate: (callback: (text: string) => void) => void;
+      
+      // Permissions
       requestMicPermission: () => Promise<boolean>;
+      
+      // Wake word service
+      wakeWord: {
+        start: () => Promise<void>;
+        stop: () => Promise<void>;
+        getStatus: () => Promise<WakeWordStatus>;
+        
+        onStatusChange: (callback: (status: WakeWordStatus) => void) => () => void;
+        onWakeDetected: (callback: (data: { transcript: string; confidence: number }) => void) => () => void;
+        onCommandCaptured: (callback: (data: { command: string; fullTranscript: string }) => void) => () => void;
+        onTranscript: (callback: (data: { text: string; isFinal: boolean }) => void) => () => void;
+        onError: (callback: (error: string) => void) => () => void;
+      };
     };
   }
 
