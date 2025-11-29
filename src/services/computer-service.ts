@@ -13,6 +13,7 @@ const execPromise = promisify(exec);
 
 export const getComputerTool = async () => {
   const displayDimensions = await Computer.getDisplayDimensions();
+  console.log("Display dimensions:", displayDimensions);
 
   return anthropic.tools.computer_20250124({
     displayWidthPx: displayDimensions.width,
@@ -42,8 +43,10 @@ let commandCount = 0;
 async function executeCliClickCommand(command: string): Promise<string> {
   // We print the command count because for some reason this makes cliclick work
   // https://github.com/BlueM/cliclick/issues/164
+  // UPDATE: p:count is invalid syntax and causes errors. Using just 'p' prints position which is harmless/useful.
+  // But for now, let's just run the command as is to avoid errors.
   commandCount++;
-  return (await execPromise(`cliclick ${command} p:${commandCount}`)).stdout;
+  return (await execPromise(`cliclick ${command}`)).stdout;
 }
 
 /**
@@ -170,6 +173,19 @@ function mapSingleKey(key: string): string {
  * Computer class to automate mouse and keyboard actions using cliclick
  */
 export namespace Computer {
+  /**
+   * Helper to scale coordinates from physical pixels (AI view) to logical pixels (cliclick)
+   */
+  function scaleCoordinates(x: number, y: number): { x: number; y: number } {
+    // User requested 1:1 scaling. We assume the AI is providing logical coordinates.
+    // const scaleFactor = electronScreen.getPrimaryDisplay().scaleFactor;
+    const scaleFactor = 1;
+    const scaledX = Math.round(x / scaleFactor);
+    const scaledY = Math.round(y / scaleFactor);
+    console.error(`[COMPUTER] Scaling (${x}, ${y}) -> (${scaledX}, ${scaledY}) (Factor: ${scaleFactor} - FORCED 1:1)`);
+    return { x: scaledX, y: scaledY };
+  }
+
   export async function executeComputerAction(toolParams: {
     action: string;
     coordinate?: number[];
@@ -179,6 +195,20 @@ export namespace Computer {
     scroll_amount?: number;
     scroll_direction?: "up" | "down" | "left" | "right";
   }): Promise<string> {
+
+    // Log current state
+    try {
+        const cursor = await getCursorPosition();
+        console.error(`[COMPUTER] Before Action: ${cursor}`);
+    } catch (e) {
+        console.error(`[COMPUTER] Failed to get cursor position: ${e}`);
+    }
+
+    console.error(`[COMPUTER] Executing action: ${toolParams.action}`);
+    if (toolParams.coordinate) {
+        console.error(`[COMPUTER] Target Coordinate (AI Provided): [${toolParams.coordinate}]`);
+    }
+
     switch (toolParams.action) {
       case "key": {
         if (!toolParams.text) {
@@ -329,7 +359,8 @@ export namespace Computer {
    */
   export async function moveMouse(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`m:${x},${y}`);
+      const scaled = scaleCoordinates(x, y);
+      await executeCliClickCommand(`m:${scaled.x},${scaled.y}`);
       return `Mouse moved to (${x}, ${y})`;
     }, "Error moving mouse");
   }
@@ -367,7 +398,11 @@ export namespace Computer {
    */
   export async function clickAt(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`c:${x},${y}`);
+      const scaled = scaleCoordinates(x, y);
+      // Use a single command chain for better timing reliability
+      // m: move, w: wait (ms), dd: mouse down, du: mouse up
+      // Increased wait times for better reliability
+      await executeCliClickCommand(`m:${scaled.x},${scaled.y} w:200 dd:. w:100 du:.`);
       return `Clicked at (${x}, ${y})`;
     }, "Error clicking at coordinates");
   }
@@ -391,7 +426,8 @@ export namespace Computer {
    */
   export async function rightClickAt(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`rc:${x},${y}`);
+      const scaled = scaleCoordinates(x, y);
+      await executeCliClickCommand(`rc:${scaled.x},${scaled.y}`);
       return `Right-clicked at (${x}, ${y})`;
     }, "Error right-clicking at coordinates");
   }
@@ -415,7 +451,8 @@ export namespace Computer {
    */
   export async function doubleClickAt(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`dc:${x},${y}`);
+      const scaled = scaleCoordinates(x, y);
+      await executeCliClickCommand(`dc:${scaled.x},${scaled.y}`);
       return `Double-clicked at (${x}, ${y})`;
     }, "Error double-clicking at coordinates");
   }
@@ -428,7 +465,8 @@ export namespace Computer {
    */
   export async function tripleClickAt(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`tc:${x},${y}`);
+      const scaled = scaleCoordinates(x, y);
+      await executeCliClickCommand(`tc:${scaled.x},${scaled.y}`);
       return `Triple-clicked at (${x}, ${y})`;
     }, "Error triple-clicking at coordinates");
   }
@@ -581,7 +619,8 @@ export namespace Computer {
    */
   export async function mouseDown(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`dd:${x},${y}`);
+      const scaled = scaleCoordinates(x, y);
+      await executeCliClickCommand(`dd:${scaled.x},${scaled.y}`);
       return `Mouse down at (${x}, ${y})`;
     }, "Error pressing mouse down");
   }
@@ -594,7 +633,8 @@ export namespace Computer {
    */
   export async function mouseUp(x: number, y: number): Promise<string> {
     return executeWithErrorHandling(async () => {
-      await executeCliClickCommand(`du:${x},${y}`);
+      const scaled = scaleCoordinates(x, y);
+      await executeCliClickCommand(`du:${scaled.x},${scaled.y}`);
       return `Mouse up at (${x}, ${y})`;
     }, "Error releasing mouse");
   }
@@ -614,12 +654,14 @@ export namespace Computer {
     endY: number
   ): Promise<string> {
     return executeWithErrorHandling(async () => {
+      const scaledStart = scaleCoordinates(startX, startY);
+      const scaledEnd = scaleCoordinates(endX, endY);
       // Press down at start position
-      await executeCliClickCommand(`dd:${startX},${startY}`);
+      await executeCliClickCommand(`dd:${scaledStart.x},${scaledStart.y}`);
       // Move to end position
-      await executeCliClickCommand(`dm:${endX},${endY}`);
+      await executeCliClickCommand(`dm:${scaledEnd.x},${scaledEnd.y}`);
       // Release at end position
-      await executeCliClickCommand(`du:${endX},${endY}`);
+      await executeCliClickCommand(`du:${scaledEnd.x},${scaledEnd.y}`);
       return `Dragged mouse from (${startX}, ${startY}) to (${endX}, ${endY})`;
     }, "Error dragging mouse");
   }
@@ -637,6 +679,7 @@ export namespace Computer {
     modifiers: string
   ): Promise<string> {
     return executeWithErrorHandling(async () => {
+      const scaled = scaleCoordinates(x, y);
       // Map modifiers to cliclick format, as Claude will use xdotool format like "alt+ctrl"
       let formattedModifiers = modifiers;
 
@@ -649,7 +692,7 @@ export namespace Computer {
       // Hold modifier keys
       await executeCliClickCommand(`kd:${formattedModifiers}`);
       // Click at coordinates
-      await executeCliClickCommand(`c:${x},${y}`);
+      await executeCliClickCommand(`c:${scaled.x},${scaled.y}`);
       // Release modifier keys
       await executeCliClickCommand(`ku:${formattedModifiers}`);
       return `Clicked at (${x}, ${y}) while holding ${modifiers}`;
@@ -701,9 +744,10 @@ export namespace Computer {
     direction: "up" | "down" | "left" | "right"
   ): Promise<string> {
     return executeWithErrorHandling(async () => {
+      const scaled = scaleCoordinates(x, y);
       // cliclick doesn't have a built-in scroll command
       // We need to move to the position first
-      await executeCliClickCommand(`m:${x},${y}`);
+      await executeCliClickCommand(`m:${scaled.x},${scaled.y}`);
 
       // For each scroll amount, simulate a key press
       const key =
@@ -734,20 +778,45 @@ export namespace Computer {
     height: number;
   }): Promise<string> {
     return executeWithErrorHandling(async () => {
-      // Capture the screenshot as a Buffer
-      const imgBuffer = await screenshot({ format: "png" });
-      const sharpImg = sharp(imgBuffer.buffer);
+      // Hide the overlay window before taking screenshot
+      const { BrowserWindow } = require("electron");
+      const windows = BrowserWindow.getAllWindows();
+      const overlayWindow = windows.find((w: any) => {
+        try {
+            const url = w.webContents.getURL();
+            return url.includes("overlay");
+        } catch (e) {
+            return false;
+        }
+      });
 
-      if (resizeToFit) {
-        const resizedBuffer = await sharpImg
-          .resize(resizeToFit.width, resizeToFit.height, {
-            fit: "inside",
-            withoutEnlargement: true,
-          })
-          .toBuffer();
-        return Buffer.from(resizedBuffer).toString("base64");
-      } else {
-        return Buffer.from(imgBuffer.buffer).toString("base64");
+      if (overlayWindow) {
+        overlayWindow.hide();
+        // Wait a tiny bit for the hide to take effect
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      try {
+        // Capture the screenshot as a Buffer
+        const imgBuffer = await screenshot({ format: "png" });
+        const sharpImg = sharp(imgBuffer.buffer);
+
+        if (resizeToFit) {
+          const resizedBuffer = await sharpImg
+            .resize(resizeToFit.width, resizeToFit.height, {
+              fit: "inside",
+              withoutEnlargement: true,
+            })
+            .toBuffer();
+          return Buffer.from(resizedBuffer).toString("base64");
+        } else {
+          return Buffer.from(imgBuffer.buffer).toString("base64");
+        }
+      } finally {
+        // Show the overlay window again
+        if (overlayWindow) {
+          overlayWindow.show();
+        }
       }
     }, "Error taking screenshot");
   }
@@ -761,10 +830,20 @@ export namespace Computer {
     height: number;
   }> {
     return executeWithErrorHandling(async () => {
+      const { screen: electronScreen } = require("electron");
       const imgBuffer = await screenshot({ format: "png" });
       const sharpImg = sharp(imgBuffer.buffer);
       const metadata = await sharpImg.metadata();
-      return { width: metadata.width || 0, height: metadata.height || 0 };
+      
+      const primaryDisplay = electronScreen.getPrimaryDisplay();
+      console.error(`[COMPUTER] Screenshot dimensions: ${metadata.width}x${metadata.height}`);
+      console.error(`[COMPUTER] Display size (logical): ${primaryDisplay.size.width}x${primaryDisplay.size.height}`);
+      console.error(`[COMPUTER] Scale factor: ${primaryDisplay.scaleFactor}`);
+
+      return {
+        width: metadata.width || 0,
+        height: metadata.height || 0,
+      };
     }, "Error getting display dimensions");
   }
 }

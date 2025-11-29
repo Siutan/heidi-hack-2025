@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("electron", {
   checkAndOpenApp: () => ipcRenderer.invoke("check-and-open-app"),
   executeVoiceCommand: (command: string) =>
     ipcRenderer.invoke("execute-voice-command", command),
+  automateEhrNavigation: () => ipcRenderer.invoke("automate-ehr-navigation"),
   transcribeAudio: (base64Audio: string) =>
     ipcRenderer.invoke("transcribe-audio", base64Audio),
 });

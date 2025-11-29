@@ -68,6 +68,63 @@ ipcMain.handle("execute-voice-command", async (_event, command: string) => {
   }
 });
 
+ipcMain.handle("automate-ehr-navigation", async () => {
+  try {
+    console.log("Received request to automate EHR navigation");
+    const { screen } = require("electron");
+    const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
+    console.error(`[MAIN] Primary Display Scale Factor: ${scaleFactor}`);
+    const command =
+      "Navigate to the Patients tab in the Mock EHR app, wait a moment, then navigate back to the Appointments tab. If clicking doesn't work or the screen doesn't change, try moving the mouse slightly or clicking a different part of the tab. You can also try clicking other visible elements to verify control.";
+    const result = await interpretAndExecuteCommand(command);
+    return result;
+  } catch (error) {
+    console.error("Error automating EHR navigation:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to automate EHR navigation",
+    };
+  }
+});
+
+ipcMain.handle("test-calibration", async () => {
+  try {
+    console.log("Running calibration test...");
+    const { screen } = require("electron");
+    const primaryDisplay = screen.getPrimaryDisplay();
+    console.log("Primary Display:", {
+      scaleFactor: primaryDisplay.scaleFactor,
+      size: primaryDisplay.size,
+      bounds: primaryDisplay.bounds,
+      workArea: primaryDisplay.workArea,
+    });
+
+    const screenshot = require("screenshot-desktop");
+    const imgBuffer = await screenshot({ format: "png" });
+    const sharp = require("sharp");
+    const metadata = await sharp(imgBuffer).metadata();
+    console.log("Screenshot Metadata:", {
+      width: metadata.width,
+      height: metadata.height,
+      density: metadata.density,
+    });
+
+    // Test click at 100,100
+    console.log("Testing click at 100,100 (logical)...");
+    const { exec } = require("child_process");
+    const { promisify } = require("util");
+    const execPromise = promisify(exec);
+    await execPromise("cliclick m:100,100 w:500 c:.");
+    console.log("Click test complete.");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Calibration test failed:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
 // Handle audio transcription
 ipcMain.handle("transcribe-audio", async (_event, base64Audio: string) => {
   try {

@@ -243,11 +243,16 @@ async function executeCommandWithVisionLoop(
       const displayDimensions = await Computer.getDisplayDimensions();
 
       // Build the prompt for this iteration
-      const prompt =
+    const prompt =
         iteration === 1
           ? `You are a desktop automation assistant. The user wants you to: "${command}"
 
 Screen dimensions: ${displayDimensions.width}x${displayDimensions.height}
+
+IMPORTANT:
+1. The top of the screen (approx. first 80-100 physical pixels / 40-50 logical pixels) is the macOS Menu Bar. Applications start BELOW this.
+2. If you are trying to click a tab or button near the top of the app, ensure your Y coordinate is large enough to clear the menu bar (e.g., Y > 100 physical).
+3. The "Patients" tab is likely around Y=120-160 physical pixels. Do not click too high.
 
 Look at the current screen and decide the NEXT SINGLE ACTION to take to accomplish this goal.
 
@@ -265,7 +270,11 @@ When the task is fully complete, set "isComplete": true and set "actions": ["don
 IMPORTANT: You can return MULTIPLE actions that will be executed in sequence. Group related actions together for speed (e.g., ["key: cmd+space", "type: Safari", "key: return"]).`
           : `Continue with: "${command}"
 
+Screen dimensions: ${displayDimensions.width}x${displayDimensions.height}
+
 Previous actions: ${executedActions.slice(-5).join(" → ")}
+
+REMINDER: The top ~100px is the Menu Bar. Aim lower for app tabs.
 
 What are the NEXT ACTIONS to take? Return the same JSON format with actions array.`;
 

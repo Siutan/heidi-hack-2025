@@ -10,6 +10,11 @@ declare global {
         message: string;
         actions?: string[];
       }>;
+      automateEhrNavigation: () => Promise<{
+        success: boolean;
+        message: string;
+        actions?: string[];
+      }>;
       transcribeAudio: (base64Audio: string) => Promise<{
         success: boolean;
         transcript: string;
