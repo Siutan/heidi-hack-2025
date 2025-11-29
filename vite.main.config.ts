@@ -38,6 +38,8 @@ export default defineConfig({
         "@google/genai",
         "ai",
         "ws",
+        '@computer-use/nut-js',
+        'electron-squirrel-startup',
       ],
     },
   },

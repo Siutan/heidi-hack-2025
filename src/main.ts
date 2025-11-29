@@ -2,11 +2,12 @@ import {
   app,
   BrowserWindow,
   screen,
-  ipcMain,
+  ipcMain, desktopCapturer, dialog,
   systemPreferences,
 } from "electron";
 import path from "node:path";
 import { exec } from "child_process";
+import 'dotenv/config'; // Load .env file
 import started from "electron-squirrel-startup";
 import * as dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -42,6 +43,7 @@ console.log(
     ? `SET (${process.env.GEMINI_API_KEY.substring(0, 10)}...)`
     : "NOT SET ⚠️"
 );
+import { generateMockData, performAutomation } from './rpa';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -306,7 +308,6 @@ const createOverlayWindow = () => {
     },
   });
 
-  // Make it float above full-screen apps if possible
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   overlayWindow.setAlwaysOnTop(true, "floating", 1);
 
@@ -326,7 +327,6 @@ const createOverlayWindow = () => {
 };
 
 const createWindow = () => {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
@@ -335,7 +335,6 @@ const createWindow = () => {
     },
   });
 
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -348,16 +347,45 @@ const createWindow = () => {
   mainWindow.webContents.openDevTools();
 
   createOverlayWindow();
+
+  ipcMain.handle('get-sources', async () => {
+    const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] });
+    return sources.map(source => ({
+      id: source.id,
+      name: source.name,
+      thumbnail: source.thumbnail.toDataURL()
+    }));
+  });
+
+  ipcMain.handle('rpa:fill-template', async (event, conversation: string, sourceId?: string) => {
+    try {
+      const textToProcess = conversation || generateMockData();
+      await performAutomation(textToProcess, sourceId, (data) => {
+        event.sender.send('automation-update', data);
+      });
+      return 'done';
+    } catch (error: any) {
+      console.error("RPA Error in main process:", error);
+      
+      let message = "An unexpected error occurred during automation.";
+      if (error.name === 'RPAError' || error.name === 'ElementNotFoundError' || error.name === 'NoActionsGeneratedError' || error.name === 'ScreenCaptureError') {
+        message = error.message;
+      } else if (error.message) {
+        message = error.message;
+      }
+
+      // Show error dialog to user
+      dialog.showErrorBox("Automation Failed", message);
+      
+      throw error; // Propagate back to renderer if needed
+    }
+  });
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+
 app.on("ready", createWindow);
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
@@ -370,12 +398,7 @@ app.on("will-quit", () => {
 });
 
 app.on("activate", () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.

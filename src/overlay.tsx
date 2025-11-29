@@ -2,16 +2,24 @@ import { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { GripVertical, ChevronDown } from "lucide-react";
 import "./overlay.css";
-
-type ViewState = "idle" | "expanded" | "recording" | "response";
-
 import { useVoiceAssistant } from "./hooks/useVoiceAssistant";
 
+type ViewState = "idle" | "expanded" | "recording" | "response" | 'automating' | 'automating' | 'selecting-source';
+
+
+interface Source {
+  id: string;
+  name: string;
+  thumbnail: string;
+}
+
 const OverlayApp = () => {
-  const [view, setView] = useState<ViewState>("idle");
+  const [view, setView] = useState<ViewState>("expanded");
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState("");
+  const [sources, setSources] = useState<Source[]>([]);
+  const [automationStatus, setAutomationStatus] = useState<{ status: string; step?: number; totalSteps?: number; details?: string } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -181,6 +189,27 @@ const OverlayApp = () => {
     }
   }, []);
 
+  const handleStartAutomation = async () => {
+    try {
+      const availableSources = await (window as any).electron.getSources();
+      setSources(availableSources);
+      setView('selecting-source');
+    } catch (e) {
+      console.error("Failed to get sources:", e);
+    }
+  };
+
+  const handleSourceSelected = async (sourceId: string) => {
+    setView('automating');
+    try {
+      await (window as any).electron.fillTemplate(transcript, sourceId);
+    } catch (e: any) {
+      console.error(e);
+      alert("Automation failed. Please check the error dialog.");
+    }
+    setView('idle');
+  };
+
   useEffect(() => {
     // Resize window based on view
     const height = view === "expanded" ? 600 : 300; // Approximate heights
@@ -208,6 +237,15 @@ const OverlayApp = () => {
     }
   }, [view]);
 
+  useEffect(() => {
+    if (window.electron && window.electron.onAutomationUpdate) {
+      window.electron.onAutomationUpdate((_event, data) => {
+        console.log("Automation update:", data);
+        setAutomationStatus(data);
+      });
+    }
+  }, []);
+
   return (
     <div className="w-full h-full flex flex-col items-center justify-start p-2">
       <div
@@ -218,7 +256,7 @@ const OverlayApp = () => {
         <div className="flex items-center justify-between px-2 py-2 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
-              <img src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
+              <img onClick={toggleShortcuts} src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
             </div>
 
             {view === "response" || geminiResponse ? (
@@ -318,7 +356,7 @@ const OverlayApp = () => {
                   <span className="font-bold text-lg text-gray-900 shrink-0">
                     "Hi Dee..."
                   </span>
-                  <span className="text-gray-400 text-md shrink-0">
+                  <span className="text-gray-400 text-md shrink-0" onClick={startRecording}>
                     Record a session
                   </span>
                 </div>
@@ -327,25 +365,11 @@ const OverlayApp = () => {
                 </span>
               </div>
             )}
+     
           </div>
 
           <div className="flex items-center gap-3">
-            {/* <div className="flex items-center gap-1 h-8">
-                 {[...Array(8)].map((_, i) => (
-                   <div key={i} className="w-1 bg-rose-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }}></div>
-                 ))}
-               </div>
-            ) : view === 'response' ? (
-              <div className="text-xs text-gray-500 cursor-pointer hover:text-gray-700" onClick={reset}>Close</div>
-            ) : (
-              <button 
-                onClick={toggleShortcuts}
-                className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0 bg-gray-100 px-3 py-1.5 rounded-lg"
-              >
-                View Shortcuts
-                {view === 'expanded' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-            )}
+          
             
             {/* Drag Handle */}
             <div className="drag-handle p-1 hover:bg-gray-100 rounded-md transition-colors cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
@@ -356,22 +380,26 @@ const OverlayApp = () => {
 
         {/* Expanded Content (Shortcuts) - Dropdown Style */}
         {view === "expanded" && (
-          <div className="px-2 pb-2 pt-0 animate-in slide-in-from-top-2 duration-200 bg-gray-50/50">
+          <div className="px-2 pb-2 pt-0 animate-in slide-in-from-top-2 duration-200 overflow-y-auto bg-gray-50/50">
             <div className="h-px w-full bg-gray-200 mb-2"></div>
             <div className="space-y-1">
               {[
                 "Record a session",
                 "Update a medical record",
                 "Get previous session notes",
-              ].map((shortcut) => (
+              , 'Fill EMR'].map((shortcut) => (
                 <button
                   key={shortcut}
                   className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-white hover:shadow-sm text-sm text-gray-700 transition-all flex items-center gap-3 group border border-transparent hover:border-gray-100"
                   onClick={() => {
                     console.log(`Clicked ${shortcut}`);
-                    // Simulate voice command for this shortcut
+                    if (shortcut === 'Fill EMR') {
+                      handleStartAutomation();
+                    } else {
+                      // Simulate voice command for this shortcut
                     // In reality, this would just run the action directly
                     if (shortcut === "Record a session") startRecording();
+                    }
                   }}
                 >
                   <div className="w-2 h-2 rounded-full bg-gray-300 group-hover:bg-rose-500 transition-colors"></div>
@@ -422,6 +450,31 @@ const OverlayApp = () => {
                 Stop
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Source Selection View */}
+        {view === 'selecting-source' && (
+          <div className="px-2 pb-2 pt-0 animate-in slide-in-from-top-2 duration-200 bg-gray-50/50 overflow-y-auto max-h-[500px]">
+            <div className="h-px w-full bg-gray-200 mb-2"></div>
+            <div className="grid grid-cols-2 gap-2">
+              {sources.map((source) => (
+                <button 
+                  key={source.id}
+                  className="flex flex-col items-center p-2 rounded-lg hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-200"
+                  onClick={() => handleSourceSelected(source.id)}
+                >
+                  <img src={source.thumbnail} alt={source.name} className="w-full h-auto rounded-md mb-2 object-cover aspect-video" />
+                  <span className="text-xs text-center text-gray-700 truncate w-full" title={source.name}>{source.name}</span>
+                </button>
+              ))}
+            </div>
+            <button 
+              className="w-full mt-2 text-center text-sm text-gray-500 hover:text-gray-700 py-2"
+              onClick={() => setView('expanded')}
+            >
+              Cancel
+            </button>
           </div>
         )}
 

@@ -60,4 +60,7 @@ contextBridge.exposeInMainWorld('electron', {
       return () => ipcRenderer.removeListener('wake-word-error', listener);
     },
   },
+  fillTemplate: (conversation?: string, sourceId?: string) => ipcRenderer.invoke('rpa:fill-template', conversation, sourceId),
+  getSources: () => ipcRenderer.invoke('get-sources'),
+  onAutomationUpdate: (callback: (event: any, data: any) => void) => ipcRenderer.on('automation-update', callback),
 });

@@ -67,7 +67,7 @@ Screen dimensions: ${displayDimensions.width}x${displayDimensions.height}
 
 CONTEXT:
 - Heidi Health (scribe.heidihealth.com) is a medical scribe platform with clinical notes
-- EMR (Electronic Medical Record) is where these notes need to be pasted
+- EMR (Electronic Medical Record) or mock ehr desktop app is where these notes need to be pasted
 - You need to: 1) Find and focus Heidi, 2) Select and copy the notes, 3) Switch to EMR/notes app, 4) Paste
 
 Look at the current screen and decide the NEXT SINGLE ACTION to accomplish this goal.
