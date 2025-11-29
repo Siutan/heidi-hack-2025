@@ -3,7 +3,7 @@
  * Detects wake word variations using fuzzy matching and phonetic similarity
  */
 
-import { DEFAULT_CONFIG } from './types';
+import { DEFAULT_CONFIG } from "./types";
 
 export interface WakeWordMatch {
   matched: boolean;
@@ -22,7 +22,7 @@ export class WakeWordMatcher {
     threshold: number = DEFAULT_CONFIG.wakeWordThreshold
   ) {
     // Normalize wake words to lowercase
-    this.wakeWords = wakeWords.map(w => w.toLowerCase().trim());
+    this.wakeWords = wakeWords.map((w) => w.toLowerCase().trim());
     this.threshold = threshold;
   }
 
@@ -31,7 +31,7 @@ export class WakeWordMatcher {
    */
   match(transcript: string): WakeWordMatch {
     const normalized = transcript.toLowerCase().trim();
-    
+
     // Try exact substring match first
     for (const wakeWord of this.wakeWords) {
       const index = normalized.indexOf(wakeWord);
@@ -48,11 +48,11 @@ export class WakeWordMatcher {
 
     // Try phonetic/fuzzy matching
     const words = this.extractPotentialWakeWords(normalized);
-    
+
     for (const candidate of words) {
       for (const wakeWord of this.wakeWords) {
         const similarity = this.calculateSimilarity(candidate.text, wakeWord);
-        
+
         if (similarity >= this.threshold) {
           return {
             matched: true,
@@ -67,8 +67,8 @@ export class WakeWordMatcher {
 
     return {
       matched: false,
-      matchedPhrase: '',
-      matchedWakeWord: '',
+      matchedPhrase: "",
+      matchedWakeWord: "",
       confidence: 0,
       remainingText: transcript,
     };
@@ -78,7 +78,9 @@ export class WakeWordMatcher {
    * Extract potential wake word candidates from transcript
    * Looks at 2-word combinations that could be the wake word
    */
-  private extractPotentialWakeWords(text: string): Array<{ text: string; remaining: string }> {
+  private extractPotentialWakeWords(
+    text: string
+  ): Array<{ text: string; remaining: string }> {
     const words = text.split(/\s+/);
     const candidates: Array<{ text: string; remaining: string }> = [];
 
@@ -86,7 +88,7 @@ export class WakeWordMatcher {
     for (let i = 0; i < words.length; i++) {
       candidates.push({
         text: words[i],
-        remaining: words.slice(i + 1).join(' '),
+        remaining: words.slice(i + 1).join(" "),
       });
     }
 
@@ -94,7 +96,7 @@ export class WakeWordMatcher {
     for (let i = 0; i < words.length - 1; i++) {
       candidates.push({
         text: `${words[i]} ${words[i + 1]}`,
-        remaining: words.slice(i + 2).join(' '),
+        remaining: words.slice(i + 2).join(" "),
       });
     }
 
@@ -108,10 +110,11 @@ export class WakeWordMatcher {
     const levenshteinSim = this.levenshteinSimilarity(a, b);
     const phoneticSim = this.phoneticSimilarity(a, b);
     const soundsSimilar = this.soundsLike(a, b);
-    
+
     // Weight phonetic matching higher for wake words
-    const score = (levenshteinSim * 0.3) + (phoneticSim * 0.4) + (soundsSimilar ? 0.3 : 0);
-    
+    const score =
+      levenshteinSim * 0.3 + phoneticSim * 0.4 + (soundsSimilar ? 0.3 : 0);
+
     return score;
   }
 
@@ -122,7 +125,7 @@ export class WakeWordMatcher {
     const distance = this.levenshteinDistance(a, b);
     const maxLength = Math.max(a.length, b.length);
     if (maxLength === 0) return 1;
-    return 1 - (distance / maxLength);
+    return 1 - distance / maxLength;
   }
 
   /**
@@ -161,16 +164,16 @@ export class WakeWordMatcher {
   private phoneticSimilarity(a: string, b: string): number {
     const codeA = this.phoneticCode(a);
     const codeB = this.phoneticCode(b);
-    
+
     if (codeA === codeB) return 1;
-    
+
     // Partial match
     const minLen = Math.min(codeA.length, codeB.length);
     let matches = 0;
     for (let i = 0; i < minLen; i++) {
       if (codeA[i] === codeB[i]) matches++;
     }
-    
+
     return matches / Math.max(codeA.length, codeB.length);
   }
 
@@ -178,23 +181,35 @@ export class WakeWordMatcher {
    * Generate a phonetic code for a word (simplified Soundex)
    */
   private phoneticCode(word: string): string {
-    if (!word) return '';
-    
-    const w = word.toLowerCase().replace(/[^a-z]/g, '');
-    if (!w) return '';
+    if (!word) return "";
+
+    const w = word.toLowerCase().replace(/[^a-z]/g, "");
+    if (!w) return "";
 
     // Phonetic mapping
     const map: Record<string, string> = {
-      'b': '1', 'f': '1', 'p': '1', 'v': '1',
-      'c': '2', 'g': '2', 'j': '2', 'k': '2', 'q': '2', 's': '2', 'x': '2', 'z': '2',
-      'd': '3', 't': '3',
-      'l': '4',
-      'm': '5', 'n': '5',
-      'r': '6',
+      b: "1",
+      f: "1",
+      p: "1",
+      v: "1",
+      c: "2",
+      g: "2",
+      j: "2",
+      k: "2",
+      q: "2",
+      s: "2",
+      x: "2",
+      z: "2",
+      d: "3",
+      t: "3",
+      l: "4",
+      m: "5",
+      n: "5",
+      r: "6",
     };
 
     let code = w[0].toUpperCase();
-    let lastCode = map[w[0]] || '';
+    let lastCode = map[w[0]] || "";
 
     for (let i = 1; i < w.length; i++) {
       const c = map[w[i]];
@@ -202,11 +217,11 @@ export class WakeWordMatcher {
         code += c;
         lastCode = c;
       } else if (!c) {
-        lastCode = '';
+        lastCode = "";
       }
     }
 
-    return code.substring(0, 4).padEnd(4, '0');
+    return code.substring(0, 4).padEnd(4, "0");
   }
 
   /**
@@ -216,7 +231,7 @@ export class WakeWordMatcher {
     // Normalize both strings
     const normA = this.normalizePhonetics(a);
     const normB = this.normalizePhonetics(b);
-    
+
     return normA === normB;
   }
 
@@ -224,18 +239,21 @@ export class WakeWordMatcher {
    * Normalize common phonetic variations
    */
   private normalizePhonetics(text: string): string {
-    let result = text.toLowerCase().trim();
-    
+    let result = text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s]/g, "");
+
     // Common substitutions for "heidi" / "hi dee" variations
     const substitutions: [RegExp, string][] = [
       // "hi" / "hey" / "hy" are similar
-      [/^(hi|hey|hy|high)\s*/i, 'HI'],
-      // "dee" / "d" / "di" / "dy" are similar  
-      [/\s*(dee|di|dy|d|de|the|thee)$/i, 'DEE'],
+      [/^(hi|hey|hy|high|i|id)\s*/i, "HI"],
+      // "dee" / "d" / "di" / "dy" are similar
+      [/\s*(dee|di|dy|d|de|the|thee)$/i, "DEE"],
       // "heidi" / "hedy" / "hydie" as single word
-      [/^(heidi|hedy|hydie|haidee|haydi|heedy|hide|hidey?)$/i, 'HIDEE'],
+      [/^(heidi|hedy|hydie|haidee|haydi|heedy|hide|hidey?)$/i, "HIDEE"],
       // Combined forms
-      [/^(hide|heyd|hayd)/i, 'HIDEE'],
+      [/^(hide|heyd|hayd)/i, "HIDEE"],
     ];
 
     for (const [pattern, replacement] of substitutions) {
@@ -243,8 +261,8 @@ export class WakeWordMatcher {
     }
 
     // Remove remaining spaces for comparison
-    result = result.replace(/\s+/g, '');
-    
+    result = result.replace(/\s+/g, "");
+
     return result;
   }
 
@@ -265,5 +283,3 @@ export class WakeWordMatcher {
     this.threshold = Math.max(0, Math.min(1, threshold));
   }
 }
-
-

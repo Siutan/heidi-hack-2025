@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('electron', {
   sendTranscript: (text: string) => ipcRenderer.send('transcript-update', text),
   onTranscriptUpdate: (callback: (text: string) => void) => ipcRenderer.on('transcript-update', (_event, text) => callback(text)),
   
+  // App management
+  checkAndOpenApp: () => ipcRenderer.invoke('check-and-open-app'),
+  
   // Permissions
   requestMicPermission: () => ipcRenderer.invoke('request-mic-permission'),
   
@@ -33,16 +36,22 @@ contextBridge.exposeInMainWorld('electron', {
       return () => ipcRenderer.removeListener('wake-word-detected', listener);
     },
     
-    onCommandCaptured: (callback: (data: { command: string; fullTranscript: string }) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, data: { command: string; fullTranscript: string }) => callback(data);
-      ipcRenderer.on('wake-word-command', listener);
-      return () => ipcRenderer.removeListener('wake-word-command', listener);
-    },
-    
     onTranscript: (callback: (data: { text: string; isFinal: boolean }) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: { text: string; isFinal: boolean }) => callback(data);
       ipcRenderer.on('wake-word-transcript', listener);
       return () => ipcRenderer.removeListener('wake-word-transcript', listener);
+    },
+    
+    onGeminiResponse: (callback: (data: { text: string }) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { text: string }) => callback(data);
+      ipcRenderer.on('gemini-response', listener);
+      return () => ipcRenderer.removeListener('gemini-response', listener);
+    },
+    
+    onGeminiAudio: (callback: (data: { audio: string }) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { audio: string }) => callback(data);
+      ipcRenderer.on('gemini-audio', listener);
+      return () => ipcRenderer.removeListener('gemini-audio', listener);
     },
     
     onError: (callback: (error: string) => void) => {

@@ -6,9 +6,15 @@ import {
   systemPreferences,
 } from "electron";
 import path from "node:path";
+import { exec } from "child_process";
 import started from "electron-squirrel-startup";
 import * as dotenv from "dotenv";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { interpretAndExecuteCommand } from "./services/interpreter-service";
 import { getWakeWordService, destroyWakeWordService } from "./wake";
+
+declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
+declare const MAIN_WINDOW_VITE_NAME: string;
 
 // Load environment variables from multiple possible locations
 const envPaths = [
@@ -213,14 +219,20 @@ async function initializeWakeWordService() {
       broadcastToRenderers("wake-word-detected", data);
     });
 
-    service.on("commandCaptured", (data) => {
-      console.log("[Main] 📝 Command captured:", data);
-      broadcastToRenderers("wake-word-command", data);
-    });
-
     service.on("transcript", (data) => {
       console.log("[Main] Transcript:", data.text);
       broadcastToRenderers("wake-word-transcript", data);
+    });
+
+    service.on("geminiResponse", (data) => {
+      console.log("[Main] 🤖 Gemini response:", data.text);
+      broadcastToRenderers("gemini-response", data);
+    });
+
+    service.on("geminiAudio", (data) => {
+      console.log("[Main] 🔊 Gemini audio received");
+      // Convert Buffer to base64 for IPC
+      broadcastToRenderers("gemini-audio", { audio: data.audio.toString("base64") });
     });
 
     service.on("error", (error) => {

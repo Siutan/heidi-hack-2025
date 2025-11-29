@@ -13,6 +13,9 @@ declare global {
       sendTranscript: (text: string) => void;
       onTranscriptUpdate: (callback: (text: string) => void) => void;
       
+      // App management
+      checkAndOpenApp: () => Promise<boolean>;
+      
       // Permissions
       requestMicPermission: () => Promise<boolean>;
       
@@ -24,8 +27,9 @@ declare global {
         
         onStatusChange: (callback: (status: WakeWordStatus) => void) => () => void;
         onWakeDetected: (callback: (data: { transcript: string; confidence: number }) => void) => () => void;
-        onCommandCaptured: (callback: (data: { command: string; fullTranscript: string }) => void) => () => void;
         onTranscript: (callback: (data: { text: string; isFinal: boolean }) => void) => () => void;
+        onGeminiResponse: (callback: (data: { text: string }) => void) => () => void;
+        onGeminiAudio: (callback: (data: { audio: string }) => void) => () => void;
         onError: (callback: (error: string) => void) => () => void;
       };
     };

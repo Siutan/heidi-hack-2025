@@ -1,11 +1,11 @@
 /**
  * Wake Word Detection Module
  * 
- * This module provides always-on wake word detection using:
+ * This module provides:
+ * - Wake word detection ("Hi Dee") using Google Speech-to-Text
+ * - Real-time conversation using Gemini Live API after wake word
  * - Audio capture via SoX
  * - Voice Activity Detection (VAD) to reduce API costs
- * - Google Cloud Speech-to-Text for streaming recognition
- * - Phonetic matching for wake word variations
  * 
  * Usage in main process:
  * ```
@@ -18,8 +18,8 @@
  *   console.log('Wake word detected:', transcript);
  * });
  * 
- * service.on('commandCaptured', ({ command }) => {
- *   console.log('Command:', command);
+ * service.on('geminiResponse', ({ text }) => {
+ *   console.log('Gemini says:', text);
  * });
  * 
  * service.start();
@@ -31,6 +31,7 @@ export * from './audioCapture';
 export * from './vad';
 export * from './googleSpeech';
 export * from './wakeWordMatcher';
+export * from './geminiLive';
 export * from './wakeWordService';
 
 

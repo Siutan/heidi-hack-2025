@@ -1,6 +1,7 @@
 /**
  * Wake Word Service
- * Main orchestrator that combines audio capture, VAD, Google Speech, and wake word matching
+ * Simplified service that ONLY detects the wake word "Hi Dee"
+ * After detection, it hands off to Gemini Live for the actual conversation
  */
 
 import { EventEmitter } from "events";
@@ -8,13 +9,15 @@ import { AudioCapture, checkSoxInstalled } from "./audioCapture";
 import { VAD } from "./vad";
 import { GoogleSpeechService } from "./googleSpeech";
 import { WakeWordMatcher } from "./wakeWordMatcher";
+import { GeminiLiveService, getGeminiLiveService } from "./geminiLive";
 import { WakeWordStatus, WakeWordServiceConfig, DEFAULT_CONFIG } from "./types";
 
 export interface WakeWordServiceEvents {
   statusChange: (status: WakeWordStatus) => void;
   wakeDetected: (data: { transcript: string; confidence: number }) => void;
-  commandCaptured: (data: { command: string; fullTranscript: string }) => void;
   transcript: (data: { text: string; isFinal: boolean }) => void;
+  geminiResponse: (data: { text: string }) => void;
+  geminiAudio: (data: { audio: Buffer }) => void;
   error: (error: Error) => void;
 }
 
@@ -24,15 +27,15 @@ export class WakeWordService extends EventEmitter {
   private vad: VAD;
   private googleSpeech: GoogleSpeechService;
   private wakeWordMatcher: WakeWordMatcher;
+  private geminiLive: GeminiLiveService;
 
   private status: WakeWordStatus = "idle";
   private isRunning = false;
   private currentTranscript = "";
-  private commandTranscript = ""; // Separate transcript for command capture
-  private wakeDetectedAt = 0;
-  private lastSpeechAt = 0;
-  private commandTimeout: NodeJS.Timeout | null = null;
-  private silenceCheckInterval: NodeJS.Timeout | null = null;
+  private speechBuffer: Buffer[] = [];
+  private speechStartTime = 0;
+  private maxSpeechDuration = 3000; // Only buffer 3 seconds max for wake word detection
+  private silenceTimer: NodeJS.Timeout | null = null;
 
   constructor(config: Partial<WakeWordServiceConfig> = {}) {
     super();
@@ -48,14 +51,20 @@ export class WakeWordService extends EventEmitter {
       this.config.wakeWords,
       this.config.wakeWordThreshold
     );
+    this.geminiLive = getGeminiLiveService();
 
     this.setupEventHandlers();
   }
 
   private setupEventHandlers(): void {
-    // Audio capture → VAD
+    // Audio capture → VAD + Gemini (when active)
     this.audioCapture.on("data", (chunk: Buffer) => {
       this.vad.process(chunk);
+
+      // If in conversation mode with Gemini, send audio there
+      if (this.status === "wake_detected" && this.geminiLive.connected) {
+        this.geminiLive.sendAudio(chunk);
+      }
     });
 
     this.audioCapture.on("error", (error: Error) => {
@@ -64,228 +73,152 @@ export class WakeWordService extends EventEmitter {
       this.setStatus("error");
     });
 
-    // VAD events
+    // VAD events - only used for wake word detection
     this.vad.on("speechStart", () => {
-      console.log("[WakeWordService] 🎤 Speech started");
-      this.lastSpeechAt = Date.now();
-
-      // Start streaming to Google when speech is detected
-      if (!this.googleSpeech.streaming) {
-        this.googleSpeech.startStream();
-      }
-
       if (this.status === "idle") {
+        console.log("[WakeWordService] 🎤 Speech started - checking for wake word");
+        this.speechBuffer = [];
+        this.speechStartTime = Date.now();
         this.setStatus("listening");
+        
+        // Start Google Speech stream for wake word detection
+        if (!this.googleSpeech.streaming) {
+          this.googleSpeech.startStream();
+        }
       }
     });
 
     this.vad.on("speech", (chunk: Buffer) => {
-      // Forward speech audio to Google
-      this.googleSpeech.write(chunk);
-      this.lastSpeechAt = Date.now();
+      if (this.status === "listening") {
+        // Buffer speech for wake word detection
+        this.speechBuffer.push(chunk);
+        this.googleSpeech.write(chunk);
+
+        // Reset silence timer
+        if (this.silenceTimer) {
+          clearTimeout(this.silenceTimer);
+        }
+
+        // Check if we've been speaking too long without wake word
+        const duration = Date.now() - this.speechStartTime;
+        if (duration > this.maxSpeechDuration) {
+          console.log("[WakeWordService] ⏰ Max speech duration reached without wake word");
+          this.resetToIdle();
+        }
+      }
     });
 
     this.vad.on("speechEnd", () => {
-      console.log("[WakeWordService] 🔇 Speech ended");
-
-      // When speech ends in idle/listening state, stop the stream to get fresh results next time
-      if (this.status === "idle" || this.status === "listening") {
-        // Give Google a moment to send final results, then stop stream
-        setTimeout(() => {
-          if (this.status === "idle" || this.status === "listening") {
-            this.googleSpeech.stopStream();
-            this.currentTranscript = "";
+      if (this.status === "listening") {
+        console.log("[WakeWordService] 🔇 Speech ended");
+        
+        // Wait a bit for final transcript, then reset if no wake word
+        this.silenceTimer = setTimeout(() => {
+          if (this.status === "listening") {
+            console.log("[WakeWordService] No wake word detected, resetting...");
+            this.resetToIdle();
           }
-        }, 500);
-      }
-
-      // Check if we should end command capture
-      if (this.status === "wake_detected") {
-        this.checkSilenceTimeout();
+        }, 1500);
       }
     });
 
-    // Google Speech events
+    // Google Speech events - only for wake word detection
     this.googleSpeech.on(
       "transcript",
       (data: { text: string; confidence: number; isFinal: boolean }) => {
-        this.handleTranscript(data);
+        if (this.status !== "listening") return;
+        
+        const text = data.text.trim();
+        if (!text) return;
+
+        console.log(`[WakeWordService] 📝 "${text}" (final: ${data.isFinal})`);
+        this.currentTranscript = text;
+        this.emit("transcript", { text, isFinal: data.isFinal });
+
+        // Check for wake word
+        const match = this.wakeWordMatcher.match(text);
+        if (match.matched) {
+          console.log(`[WakeWordService] 🎉 WAKE WORD DETECTED! "${match.matchedPhrase}"`);
+          this.handleWakeWordDetected(text, match.confidence);
+        }
       }
     );
 
     this.googleSpeech.on("error", (error: Error) => {
       console.error("[WakeWordService] Google Speech error:", error);
-      // Try to recover
-      if (this.isRunning && this.status !== "error") {
-        setTimeout(() => {
-          if (this.isRunning) {
-            this.googleSpeech.stopStream();
-          }
-        }, 1000);
-      }
     });
-  }
 
-  private handleTranscript(data: {
-    text: string;
-    confidence: number;
-    isFinal: boolean;
-  }): void {
-    const text = data.text.trim();
-    if (!text) return;
+    // Gemini Live events
+    this.geminiLive.on("textResponse", (text: string) => {
+      console.log(`[WakeWordService] 🤖 Gemini: "${text}"`);
+      this.emit("geminiResponse", { text });
+    });
 
-    console.log(
-      `[WakeWordService] 📝 "${text}" (status: ${this.status}, final: ${data.isFinal})`
-    );
+    this.geminiLive.on("audioResponse", (audio: Buffer) => {
+      this.emit("geminiAudio", { audio });
+    });
 
-    // Emit transcript for UI
-    this.emit("transcript", { text, isFinal: data.isFinal });
+    this.geminiLive.on("turnComplete", () => {
+      console.log("[WakeWordService] ✓ Gemini turn complete");
+      // After Gemini responds, go back to listening for wake word
+      this.resetToIdle();
+    });
 
-    if (this.status === "listening") {
-      this.currentTranscript = text;
+    this.geminiLive.on("error", (error: Error) => {
+      console.error("[WakeWordService] Gemini error:", error);
+      this.resetToIdle();
+    });
 
-      // Check for wake word
-      const match = this.wakeWordMatcher.match(text);
-
-      if (match.matched) {
-        console.log(
-          `[WakeWordService] 🎉 WAKE WORD DETECTED! "${match.matchedPhrase}"`
-        );
-
-        // Stop current stream and start fresh for command capture
-        this.googleSpeech.stopStream();
-
-        this.setStatus("wake_detected");
-        this.wakeDetectedAt = Date.now();
-        this.commandTranscript = "";
-
-        this.emit("wakeDetected", {
-          transcript: text,
-          confidence: match.confidence,
-        });
-
-        // Start fresh stream for command capture
-        setTimeout(() => {
-          if (this.status === "wake_detected" && this.isRunning) {
-            console.log(
-              "[WakeWordService] Starting fresh stream for command capture..."
-            );
-            this.googleSpeech.startStream();
-          }
-        }, 100);
-
-        // Start command timeout
-        this.startCommandTimeout();
-      }
-    } else if (this.status === "wake_detected") {
-      // Capture command - this is a fresh transcript after wake word
-      this.commandTranscript = text;
-      this.lastSpeechAt = Date.now();
-
-      // If we got a final result with actual content, capture the command
-      if (data.isFinal && text.length > 0) {
-        this.captureCommand(text);
-      }
-    }
-  }
-
-  private startCommandTimeout(): void {
-    if (this.commandTimeout) {
-      clearTimeout(this.commandTimeout);
-    }
-
-    this.commandTimeout = setTimeout(() => {
+    this.geminiLive.on("disconnected", () => {
+      console.log("[WakeWordService] Gemini disconnected");
       if (this.status === "wake_detected") {
-        console.log("[WakeWordService] ⏰ Command timeout reached");
-        if (this.commandTranscript.trim()) {
-          this.captureCommand(this.commandTranscript);
-        } else {
-          // No command captured, reset
-          console.log("[WakeWordService] No command captured, resetting...");
-          this.resetToListening();
-        }
+        this.resetToIdle();
       }
-    }, this.config.commandTimeout);
-
-    this.startSilenceCheck();
-  }
-
-  private startSilenceCheck(): void {
-    if (this.silenceCheckInterval) {
-      clearInterval(this.silenceCheckInterval);
-    }
-
-    this.silenceCheckInterval = setInterval(() => {
-      this.checkSilenceTimeout();
-    }, 200);
-  }
-
-  private checkSilenceTimeout(): void {
-    if (this.status !== "wake_detected") {
-      return;
-    }
-
-    const silenceDuration = Date.now() - this.lastSpeechAt;
-
-    if (silenceDuration >= this.config.silenceTimeout) {
-      console.log("[WakeWordService] 🔇 Silence timeout - capturing command");
-
-      if (this.commandTranscript.trim()) {
-        this.captureCommand(this.commandTranscript);
-      } else {
-        this.resetToListening();
-      }
-    }
-  }
-
-  private captureCommand(command: string): void {
-    const cleanCommand = command.trim();
-    console.log(`[WakeWordService] ✅ Command captured: "${cleanCommand}"`);
-
-    // Clear timeouts
-    if (this.commandTimeout) {
-      clearTimeout(this.commandTimeout);
-      this.commandTimeout = null;
-    }
-    if (this.silenceCheckInterval) {
-      clearInterval(this.silenceCheckInterval);
-      this.silenceCheckInterval = null;
-    }
-
-    // Stop the stream
-    this.googleSpeech.stopStream();
-
-    this.setStatus("processing");
-
-    this.emit("commandCaptured", {
-      command: cleanCommand,
-      fullTranscript: cleanCommand,
     });
-
-    // Reset for next wake word after a short delay
-    setTimeout(() => {
-      this.resetToListening();
-    }, 500);
   }
 
-  private resetToListening(): void {
+  private async handleWakeWordDetected(
+    transcript: string,
+    confidence: number
+  ): Promise<void> {
+    // Stop Google Speech - we don't need it anymore
+    this.googleSpeech.stopStream();
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
+    }
+
+    this.setStatus("wake_detected");
+    this.emit("wakeDetected", { transcript, confidence });
+
+    // Start Gemini Live session for the conversation
+    try {
+      console.log("[WakeWordService] Starting Gemini Live session...");
+      await this.geminiLive.startSession();
+
+      // Send initial context - the user said "Hi Dee" and we should respond
+      // The audio will continue flowing via the audioCapture handler
+      console.log("[WakeWordService] ✓ Ready for conversation with Gemini");
+    } catch (error) {
+      console.error("[WakeWordService] Failed to start Gemini session:", error);
+      this.emit("error", error as Error);
+      this.resetToIdle();
+    }
+  }
+
+  private resetToIdle(): void {
     console.log("[WakeWordService] 🔄 Resetting to idle state");
 
-    this.commandTranscript = "";
-    this.currentTranscript = "";
-    this.wakeDetectedAt = 0;
-
-    if (this.commandTimeout) {
-      clearTimeout(this.commandTimeout);
-      this.commandTimeout = null;
-    }
-    if (this.silenceCheckInterval) {
-      clearInterval(this.silenceCheckInterval);
-      this.silenceCheckInterval = null;
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
     }
 
-    // Stop any running stream
     this.googleSpeech.stopStream();
+    this.geminiLive.endSession();
+    this.speechBuffer = [];
+    this.currentTranscript = "";
+    this.vad.reset();
 
     if (this.isRunning) {
       this.setStatus("idle");
@@ -318,8 +251,11 @@ export class WakeWordService extends EventEmitter {
     }
     console.log("[WakeWordService] ✓ SoX is installed");
 
-    console.log("[WakeWordService] Initializing Google Speech...");
+    console.log("[WakeWordService] Initializing Google Speech (for wake word)...");
     await this.googleSpeech.initialize();
+
+    console.log("[WakeWordService] Initializing Gemini Live (for conversation)...");
+    await this.geminiLive.initialize();
 
     console.log("[WakeWordService] ✓ Initialization complete!");
     console.log(
@@ -349,21 +285,18 @@ export class WakeWordService extends EventEmitter {
     console.log("[WakeWordService] Stopping...");
     this.isRunning = false;
 
-    if (this.commandTimeout) {
-      clearTimeout(this.commandTimeout);
-      this.commandTimeout = null;
-    }
-    if (this.silenceCheckInterval) {
-      clearInterval(this.silenceCheckInterval);
-      this.silenceCheckInterval = null;
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
     }
 
     this.audioCapture.stop();
     this.googleSpeech.stopStream();
+    this.geminiLive.endSession();
     this.vad.reset();
 
     this.setStatus("idle");
-    this.commandTranscript = "";
+    this.speechBuffer = [];
     this.currentTranscript = "";
   }
 
@@ -378,6 +311,7 @@ export class WakeWordService extends EventEmitter {
   async destroy(): Promise<void> {
     this.stop();
     await this.googleSpeech.destroy();
+    await this.geminiLive.destroy();
   }
 }
 

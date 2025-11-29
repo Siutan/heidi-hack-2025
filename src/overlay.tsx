@@ -5,7 +5,7 @@ import "./overlay.css";
 
 type ViewState = "idle" | "expanded" | "recording" | "response";
 
-import { useVoiceAssistant } from './hooks/useVoiceAssistant';
+import { useVoiceAssistant } from "./hooks/useVoiceAssistant";
 
 const OverlayApp = () => {
   const [view, setView] = useState<ViewState>("idle");
@@ -14,38 +14,44 @@ const OverlayApp = () => {
   const [error, setError] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Define the context for the assistant
+  // Define the context for the assistant (used for local actions)
   const assistantContext = {
     isRecording,
     recorder: {
       start: async () => {
         console.log("Assistant starting recording...");
-        // Reuse existing logic or call a function
-        startRecording(); 
+        startRecording();
       },
       stop: async () => {
         console.log("Assistant stopping recording...");
         stopRecording();
-      }
+      },
     },
     ui: {
       showDetails: (entity: string) => {
         console.log("Showing details for:", entity);
-        setView('response');
+        setView("response");
         setTranscript(`Showing details for ${entity}`);
-      }
+      },
     },
     userPref: {
-      alwaysConfirm: false
-    }
+      alwaysConfirm: false,
+    },
   };
 
-  const { startListening: startVoice, status: voiceStatus, transcript: voiceTranscript, isListening } = useVoiceAssistant(assistantContext);
+  const {
+    startListening: startVoice,
+    status: voiceStatus,
+    transcript: voiceTranscript,
+    geminiResponse,
+    isListening,
+  } = useVoiceAssistant(assistantContext);
 
   // Auto-start wake word detection on mount
   useEffect(() => {
-    console.log('[Overlay] Component mounted, starting wake word detection...');
+    console.log("[Overlay] Component mounted, starting wake word detection...");
     // Small delay to ensure everything is initialized
     const timer = setTimeout(() => {
       startVoice();
@@ -62,7 +68,12 @@ const OverlayApp = () => {
 
   // Log status changes
   useEffect(() => {
-    console.log('[Overlay] Voice status:', voiceStatus, 'isListening:', isListening);
+    console.log(
+      "[Overlay] Voice status:",
+      voiceStatus,
+      "isListening:",
+      isListening
+    );
   }, [voiceStatus, isListening]);
 
   const toggleShortcuts = () => {
@@ -89,9 +100,9 @@ const OverlayApp = () => {
         }
       }
 
-      const savedDeviceId = localStorage.getItem('selectedMicId');
+      const savedDeviceId = localStorage.getItem("selectedMicId");
       const constraints: MediaStreamConstraints = {
-        audio: savedDeviceId ? { deviceId: { exact: savedDeviceId } } : true
+        audio: savedDeviceId ? { deviceId: { exact: savedDeviceId } } : true,
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -103,14 +114,14 @@ const OverlayApp = () => {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        console.log('Recording finished', blob);
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        console.log("Recording finished", blob);
       };
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
-      setView('recording');
-      
+      setView("recording");
+
       // Simulate recording duration for the "Record a session" button click
       // If triggered by voice, we might want manual stop
       // setTimeout(() => {
@@ -142,11 +153,16 @@ const OverlayApp = () => {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setView('response'); // Go to response after recording
+      mediaRecorderRef.current.stream
+        .getTracks()
+        .forEach((track) => track.stop());
+      setView("response"); // Go to response after recording
     }
   };
 
@@ -167,28 +183,28 @@ const OverlayApp = () => {
 
   useEffect(() => {
     // Resize window based on view
-    const height = view === 'expanded' ? 600 : 300; // Approximate heights
+    const height = view === "expanded" ? 600 : 300; // Approximate heights
     // We need to get the current width to maintain it, or just pass the current width if we know it.
-    // Since we are full width, we might need to be careful. 
-    // Actually, setSize takes (width, height). 
-    // If we want to keep the width dynamic, we should probably ask the main process to only change height, 
+    // Since we are full width, we might need to be careful.
+    // Actually, setSize takes (width, height).
+    // If we want to keep the width dynamic, we should probably ask the main process to only change height,
     // or pass the current outer width.
     // For now, let's assume a fixed width for the content or try to get it.
     // Better yet, let's send a message to resize only height or handle it in main.
     // But the API we made is (width, height).
     // Let's use document.body.scrollWidth or similar.
-    
-    // Actually, the window width is set in main.ts based on screen size. 
+
+    // Actually, the window width is set in main.ts based on screen size.
     // If we send a fixed width here, it might resize the window to something wrong.
     // Let's update the preload/main to accept just height or optional width.
-    
+
     // For now, let's just use a hardcoded width that matches the design or try to read it.
     // But wait, the user asked for full width.
     // If I pass a specific width, I might break the full width.
-    
+
     // Let's update the IPC to allow passing null for width to keep current width.
     if (window.electron) {
-       window.electron.resizeWindow(document.body.offsetWidth, height);
+      window.electron.resizeWindow(document.body.offsetWidth, height);
     }
   }, [view]);
 
@@ -204,46 +220,80 @@ const OverlayApp = () => {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
               <img src="assets/logo.svg" alt="Heidi Logo" className="w-8 h-8" />
             </div>
-            
-            {view === 'response' ? (
+
+            {view === "response" || geminiResponse ? (
               <div className="flex flex-col">
-                <span className="font-bold text-lg text-gray-900 shrink-0">From Dee</span>
+                <span className="font-bold text-lg text-gray-900 shrink-0">
+                  🤖 Dee says...
+                </span>
               </div>
-            ) : view === 'recording' || voiceStatus === 'listening' || voiceStatus === 'wake_detected' ? (
+            ) : voiceStatus === "wake_detected" ? (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-lg text-gray-900 shrink-0">
+                    🎉 Listening...
+                  </span>
+                  <span className="animate-pulse text-green-500">●</span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  Speak your command to Dee
+                </span>
+              </div>
+            ) : view === "recording" ||
+              voiceStatus === "listening" ? (
               <div className="flex items-center overflow-hidden whitespace-nowrap max-w-[300px]">
-                 {transcript ? (
-                   <span className="text-lg text-gray-900 shrink-0">
-                     {transcript.split(/(\bhi dee\b|\bheidi\b)/i).map((part, i) => 
-                       /(\bhi dee\b|\bheidi\b)/i.test(part) ? 
-                         <span key={i} className="font-bold text-rose-500">{part}</span> : 
-                         <span key={i}>{part}</span>
-                     )}
-                   </span>
-                 ) : (
-                   <span className="font-bold text-lg text-gray-900 shrink-0">
-                     {voiceStatus === 'wake_detected' ? '🎉 Wake word detected!' : 'Listening...'}
-                   </span>
-                 )}
+                {transcript ? (
+                  <span className="text-lg text-gray-900 shrink-0">
+                    {transcript
+                      .split(/(\bhi dee\b|\bheidi\b)/i)
+                      .map((part, i) =>
+                        /(\bhi dee\b|\bheidi\b)/i.test(part) ? (
+                          <span key={i} className="font-bold text-rose-500">
+                            {part}
+                          </span>
+                        ) : (
+                          <span key={i}>{part}</span>
+                        )
+                      )}
+                  </span>
+                ) : (
+                  <span className="font-bold text-lg text-gray-900 shrink-0">
+                    Listening for "Hi Dee"...
+                  </span>
+                )}
               </div>
             ) : isListening ? (
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg text-gray-900 shrink-0">Say "Hi Dee"</span>
+                  <span className="font-bold text-lg text-gray-900 shrink-0">
+                    Say "Hi Dee"
+                  </span>
                   <span className="animate-pulse text-green-500">●</span>
                 </div>
-                <span className="text-xs text-gray-500">Status: {voiceStatus} | Waiting for wake word...</span>
+                <span className="text-xs text-gray-500">
+                  Status: {voiceStatus} | Waiting for wake word...
+                </span>
               </div>
             ) : (
-              <div className="flex flex-col cursor-pointer" onClick={() => {
-                // For now, clicking this triggers the voice assistant simulation
-                console.log('[Overlay] Manual start clicked');
-                startVoice();
-              }}>
+              <div
+                className="flex flex-col cursor-pointer"
+                onClick={() => {
+                  // For now, clicking this triggers the voice assistant simulation
+                  console.log("[Overlay] Manual start clicked");
+                  startVoice();
+                }}
+              >
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-lg text-gray-900 shrink-0">"Hi Dee..."</span>
-                  <span className="text-gray-400 text-md shrink-0">Record a session</span>
+                  <span className="font-bold text-lg text-gray-900 shrink-0">
+                    "Hi Dee..."
+                  </span>
+                  <span className="text-gray-400 text-md shrink-0">
+                    Record a session
+                  </span>
                 </div>
-                <span className="text-xs text-gray-500">Status: {voiceStatus} | Click to start listening</span>
+                <span className="text-xs text-gray-500">
+                  Status: {voiceStatus} | Click to start listening
+                </span>
               </div>
             )}
           </div>
@@ -290,7 +340,7 @@ const OverlayApp = () => {
                     console.log(`Clicked ${shortcut}`);
                     // Simulate voice command for this shortcut
                     // In reality, this would just run the action directly
-                    if (shortcut === 'Record a session') startRecording();
+                    if (shortcut === "Record a session") startRecording();
                   }}
                 >
                   <div className="w-2 h-2 rounded-full bg-gray-300 group-hover:bg-rose-500 transition-colors"></div>
@@ -345,12 +395,13 @@ const OverlayApp = () => {
         )}
 
         {/* Response Content */}
-        {view === "response" && (
+        {(view === "response" || geminiResponse) && (
           <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
-             <div className="h-px w-full bg-gray-200 mb-3"></div>
-             <p className="text-sm text-gray-700 leading-relaxed">
-               {transcript || "Yes of course! Your Session has started. I will record the transcript... Just let me know when you want to end it."}
-             </p>
+            <div className="h-px w-full bg-gray-200 mb-3"></div>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              {geminiResponse || transcript ||
+                "Yes of course! Your Session has started. I will record the transcript... Just let me know when you want to end it."}
+            </p>
           </div>
         )}
       </div>
@@ -363,3 +414,4 @@ if (container) {
   const root = createRoot(container);
   root.render(<OverlayApp />);
 }
+

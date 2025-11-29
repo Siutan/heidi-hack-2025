@@ -1,52 +1,59 @@
-import { useState, useEffect, useCallback } from 'react';
-import { inferIntent } from '../voice/nlu';
-import { decide } from '../voice/policy';
-import { runDecision } from '../voice/executor';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ExecContext } from '../voice/types';
 
-type VoiceStatus = 'idle' | 'listening' | 'wake_detected' | 'processing' | 'executing' | 'error';
+// Match the WakeWordStatus from types.d.ts
+type VoiceStatus = 'idle' | 'listening' | 'wake_detected' | 'processing' | 'error';
 
 export function useVoiceAssistant(context: ExecContext) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [geminiResponse, setGeminiResponse] = useState('');
   const [status, setStatus] = useState<VoiceStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  
+  // Audio context for playing Gemini audio responses
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Process a command through the NLU pipeline
-  const processCommand = useCallback(async (command: string) => {
-    console.log("Processing command:", command);
-    setStatus('processing');
-    
+  // Play audio response from Gemini (base64 encoded 24kHz PCM)
+  const playAudioResponse = useCallback(async (base64Audio: string) => {
     try {
-      const candidates = await inferIntent(command);
-      if (candidates.length === 0) {
-        console.log("No intent matched");
-        setStatus('idle');
-        return;
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext({ sampleRate: 24000 });
       }
-
-      const topCandidate = candidates[0];
-      const decision = decide(topCandidate, context);
-
-      if (decision.allow) {
-        if (decision.needsConfirm) {
-          console.log("Needs confirmation:", topCandidate.tool);
-          // TODO: Implement confirmation UI
-        }
-
-        setStatus('executing');
-        await runDecision(topCandidate, context);
-        setStatus('idle');
-      } else {
-        console.warn("Action blocked:", decision.reason);
-        setStatus('idle');
+      
+      const audioContext = audioContextRef.current;
+      
+      // Decode base64 to ArrayBuffer
+      const binaryString = atob(base64Audio);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
+      
+      // Convert to Int16Array (16-bit PCM)
+      const int16Array = new Int16Array(bytes.buffer);
+      
+      // Convert to Float32Array for Web Audio API
+      const float32Array = new Float32Array(int16Array.length);
+      for (let i = 0; i < int16Array.length; i++) {
+        float32Array[i] = int16Array[i] / 32768;
+      }
+      
+      // Create audio buffer
+      const audioBuffer = audioContext.createBuffer(1, float32Array.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Array);
+      
+      // Play the audio
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      source.start();
+      
+      console.log('[useVoiceAssistant] Playing audio response');
     } catch (err) {
-      console.error("Error processing command:", err);
-      setStatus('error');
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('[useVoiceAssistant] Error playing audio:', err);
     }
-  }, [context]);
+  }, []);
 
   // Set up wake word event listeners
   useEffect(() => {
@@ -62,9 +69,11 @@ export function useVoiceAssistant(context: ExecContext) {
       console.log('Wake word status:', newStatus);
       setStatus(newStatus as VoiceStatus);
       
-      if (newStatus === 'idle' || newStatus === 'listening') {
-        // Clear transcript when returning to listening state
-        // Actually, keep it for a moment so user can see what was said
+      if (newStatus === 'idle') {
+        // Clear transcript after a delay when returning to idle
+        setTimeout(() => {
+          setTranscript('');
+        }, 3000);
       }
     });
 
@@ -72,18 +81,24 @@ export function useVoiceAssistant(context: ExecContext) {
     const unsubWake = wakeWord.onWakeDetected((data) => {
       console.log('Wake word detected:', data);
       setTranscript(data.transcript);
+      setGeminiResponse(''); // Clear previous response
     });
 
-    // Listen for transcript updates (real-time)
+    // Listen for transcript updates (real-time, for wake word detection only)
     const unsubTranscript = wakeWord.onTranscript((data) => {
       setTranscript(data.text);
     });
 
-    // Listen for command capture
-    const unsubCommand = wakeWord.onCommandCaptured((data) => {
-      console.log('Command captured:', data);
-      setTranscript(data.fullTranscript);
-      processCommand(data.command);
+    // Listen for Gemini text responses
+    const unsubGeminiResponse = wakeWord.onGeminiResponse((data) => {
+      console.log('Gemini response:', data.text);
+      setGeminiResponse(prev => prev + data.text);
+    });
+
+    // Listen for Gemini audio responses
+    const unsubGeminiAudio = wakeWord.onGeminiAudio((data) => {
+      console.log('Gemini audio received');
+      playAudioResponse(data.audio);
     });
 
     // Listen for errors
@@ -98,10 +113,17 @@ export function useVoiceAssistant(context: ExecContext) {
       unsubStatus();
       unsubWake();
       unsubTranscript();
-      unsubCommand();
+      unsubGeminiResponse();
+      unsubGeminiAudio();
       unsubError();
+      
+      // Close audio context
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
     };
-  }, [processCommand]);
+  }, [playAudioResponse]);
 
   // Start listening
   const startListening = useCallback(async () => {
@@ -148,6 +170,7 @@ export function useVoiceAssistant(context: ExecContext) {
       setIsListening(false);
       setStatus('idle');
       setTranscript('');
+      setGeminiResponse('');
     } catch (err) {
       console.error('Failed to stop wake word service:', err);
     }
@@ -156,10 +179,10 @@ export function useVoiceAssistant(context: ExecContext) {
   return {
     isListening,
     transcript,
+    geminiResponse,
     status,
     error,
     startListening,
     stopListening,
-    processCommand, // Exposed for manual testing
   };
 }
