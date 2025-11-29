@@ -9,8 +9,10 @@ const OverlayApp = () => {
   const [view, setView] = useState<ViewState>("idle");
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const phrases = [
     "record a session",
     "lets fill out a file",
